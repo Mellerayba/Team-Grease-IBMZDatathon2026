@@ -7,7 +7,7 @@ Setup on the VM (once, in the notebook environment):   pip install --no-deps sna
 
 Background (IBM's Snap ML docs and code): on IBM z16 and later, Snap ML can run INFERENCE of tree-ensemble models on the Integrated Accelerator
 for AI through the zDNN library. It does not speed up training. The class-level importer
-    snapml.BoostingMachineRegressor().import_model(file, "lightgbm", tree_format=...)
+    snapml.BoostingMachineRegressor(n_jobs=os.cpu_count() or 1).import_model(file, "lightgbm", tree_format=...)
 reads LightGBM's own text model file directly (the generic snapml.import_model only accepts PMML). Unsupported items raise an error that names
 the item and the line. What this script settles, in order:
   1. does the CPU expose the accelerator (nnpa flag) and is the zDNN library installed?
@@ -127,7 +127,7 @@ def compare(snapml, make_model, booster, X, label):
 
 def direct_route(snapml, txt):
     def make(fmt):
-        m = snapml.BoostingMachineRegressor()
+        m = snapml.BoostingMachineRegressor(n_jobs=os.cpu_count() or 1)
         m.import_model(str(txt), "lightgbm", tree_format=fmt)
         return m
     return make
@@ -142,7 +142,7 @@ def pmml_route(snapml, nyoka, sk_model, n_features, d):
     out = d / "synthetic_LightGBM.pmml"; out.write_text(text)
 
     def make(fmt):
-        m = snapml.BoostingMachineRegressor()
+        m = snapml.BoostingMachineRegressor(n_jobs=os.cpu_count() or 1)
         m.import_model(str(out), "pmml", tree_format=fmt)
         return m
     return make
