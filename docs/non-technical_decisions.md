@@ -14,13 +14,12 @@
 **Why it works:** Ambulances are universally welcomed, non-threatening, and bypass the severe ethical controversies associated with predictive policing.
 
 ## 4. Choice of City: New York City
-We selected NYC because high-density, busy environments are where optimization yields the greatest impact. The data shows a system under severe strain:
+We selected NYC because it is a megacity that has large amounts of data suggesting that the response times of ambulances is worsening and having a life-changing effect on patients.
 
-*   **Worsening Delays:** In FY 2026, FDNY ambulances averaged 13 minutes and 9 seconds for life-threatening emergencies—an increase of 1 minute and 48 seconds from the previous year [1].
-*   **Record Demand:** In 2024, NYC logged 1.63 million medical emergencies, making it the busiest year in the city's EMS history [1].
+*   **Worsening Delays:** "Emergency Medical Services take 11 minutes and 21 seconds to arrive on the scene, a 29-second increase compared to last year and 1 minute and 4 seconds longer than in 2023." (The MidTown Gazette, September 2026).
+*   **Deteriorating Impact:** "the FDNY reporting that just 16 percent of cardiac arrest patients were revived in FY26, down from 17 percent the year before and 20 percent in Fiscal Year 2024." (The Chief, September 2026).
 
----
+## Our Solution 
+Our solution will optimise the location and routing of ambulances in New York so that they do not have as far to travel to reach the site of an incident.
+The user will input the weather, time of year and calls currently coming in and use this with an AI model based on past data to predict where to base ambulances at that specific time.
 
-### Citations (For `research.md`)
-
-[1] Freeman, H. (2026). 'FDNY ambulance response times eclipse 13 minutes', *The Chief*, 18 September. Available at: [thechiefleader.com](https://thechiefleader.com/stories/ambulance-response-times-eclipses-13-minutes,57653) (Accessed: 17 October 2026).
