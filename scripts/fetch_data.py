@@ -8,6 +8,7 @@
 Optional env vars:
     SOCRATA_APP_TOKEN  raises NYC Open Data rate limits (free). The team's token is in notebooks/HarryRowlands.ipynb
     CENSUS_API_KEY     required for ACS; free at https://api.census.gov/data/key_signup.html
+    (both can live in a git-ignored .env file at the repo root; see .env.example)
     EMS_YEARS          comma list, default 2019,2021,2022 (2020 skipped: COVID distorts demand;
                        weather file ends 2022-10-25)
 """
@@ -20,7 +21,22 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-RAW = Path(__file__).resolve().parents[1] / "notebooks" / "data" / "raw"
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _load_env_file(path):
+    """Tiny .env reader (no dependency, so it also works on a bare VM). Existing environment variables win."""
+    if path.exists():
+        for line in path.read_text().splitlines():
+            line = line.split("#", 1)[0].strip()
+            if "=" in line:
+                k, v = line.split("=", 1)
+                if v.strip():
+                    os.environ.setdefault(k.strip(), v.strip().strip("'\""))
+
+
+_load_env_file(ROOT / ".env")
+RAW = ROOT / "notebooks" / "data" / "raw"
 RAW.mkdir(parents=True, exist_ok=True)
 NYC = "https://data.cityofnewyork.us"
 NYS = "https://health.data.ny.gov"
@@ -119,7 +135,12 @@ def fetch_census():
              "B17001_002E": "below_poverty", "B01002_001E": "median_age"}
     r = get("https://api.census.gov/data/2022/acs/acs5",
             params={"get": ",".join(vars_), "for": "zip code tabulation area:*", "key": key})
-    rows = r.json()
+    try:
+        rows = r.json()
+    except ValueError:                               # Census redirects to an HTML page when the key is rejected
+        print("!! Census rejected the key (invalid, mistyped, or not activated yet: click the link in Census's confirmation email). "
+              "Skipping Census; rerun `python scripts/fetch_data.py census` once it works.")
+        return
     df = pd.DataFrame(rows[1:], columns=rows[0]).rename(columns={**vars_, "zip code tabulation area": "zcta"})
     df.to_csv(out, index=False); print(f"wrote {out.name}")
 
