@@ -1,14 +1,23 @@
-"""Load raw datasets (EMS dispatch, weather, census, asthma rates)."""
+"""Load cleaned datasets produced by notebooks/cleaning/01-07 (see docs/data.md)."""
 import pandas as pd
 
-from grease.config import DATA_RAW, NOTEBOOK_DATA
+from grease.config import DATA_INTERIM, DATA_PROCESSED
 
 
-def load_ems_incidents(path=DATA_RAW / "ems_incident_dispatch.csv") -> pd.DataFrame:
-    """NYC EMS Incident Dispatch Data. TODO: check geography columns (zip / precinct / CD)."""
-    raise NotImplementedError
+def load_demand(path=DATA_PROCESSED / "demand_zone_30min.csv.gz") -> pd.DataFrame:
+    """Zone x 30-min incident counts with weather and calendar features."""
+    return pd.read_csv(path, parse_dates=["bucket"], dtype={"zone": str})
 
 
-def load_weather(path=NOTEBOOK_DATA / "NYC_Weather_2016_2022.csv") -> pd.DataFrame:
-    df = pd.read_csv(path, parse_dates=["time"])
-    return df.rename(columns=lambda c: c.split(" (")[0])
+def load_incidents(path=DATA_PROCESSED / "incidents_sim.csv.gz") -> pd.DataFrame:
+    """One row per incident, for the replay engine and simulator."""
+    return pd.read_csv(path, parse_dates=["incident_datetime"], dtype={"zone": str})
+
+
+def load_zones() -> pd.DataFrame:
+    return pd.read_csv(DATA_INTERIM / "zones_modzcta.csv", dtype={"zone": str})
+
+
+def load_posts() -> pd.DataFrame:
+    """Candidate staging posts (hospitals + firehouses)."""
+    return pd.read_csv(DATA_INTERIM / "candidate_posts.csv", dtype={"zone": str})
