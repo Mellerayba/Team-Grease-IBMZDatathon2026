@@ -11,3 +11,6 @@ pytest
 scikit-learn
 python-dotenv
 sodapy
+scipy
+requests
+shapely

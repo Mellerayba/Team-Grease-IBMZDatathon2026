@@ -5,7 +5,7 @@ Everything is expected or realised incidents in the window that STARTS when the 
   hist_all_<horizon>         historical mean for that zone, weekday and time (all calls): the "scheduled" policy's demand
   actual_<acuity>_<horizon>  what really happened               (the "oracle" policy's demand, and for scoring)
   risk_index_1h / _3h        0-100 risk index (src/grease/risk.py), ranked across zones within each half-hour
-Windows that run past the end of the data are NaN. See docs/forecast_handoff.md.
+Windows that run past the end of the data are NaN. See docs/decisions.md, Appendix A.
 """
 import numpy as np
 import pandas as pd
