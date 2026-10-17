@@ -1,8 +1,8 @@
 """Attach weather and calendar features to any table with a time column.
 
 Single source: the 30-minute table written by notebooks/DarraghC.ipynb (`notebooks/data/weather_calendar_30min.csv.gz`),
-already in New York local time. Note that `notebooks/data/processed/model_table.csv.gz` already contains these columns
-joined onto the incident counts; use this module for other tables (e.g. forecasts, simulator clocks).
+already in New York local time. HarryRowlands.ipynb joins the same table onto the EMS panel; use this module for any other table
+(forecasts, simulator clocks).
 
 Leakage rule: the time column is the moment the forecast is *issued*. `lag_buckets` shifts the weather further back by whole
 30-minute buckets (a model predicting h buckets ahead should pass h). Columns starting with `eval_` use whole-day weather,
