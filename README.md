@@ -56,3 +56,6 @@ This project is built entirely on open-source libraries and frameworks running o
 | Component | Open-Source Library | License | Usage in Architecture |
 | :--- | :--- | :--- | :--- |
 | **Data Processing** | [pandas](https://github.com/pandas-dev/pandas) | BSD 3-Clause | Cleaning, aggregation, and spatial crosswalk operations |
+| **Spatial Prototyping** | [Folium](https://github.com/python-visualization/folium) | MIT | Interactive Leaflet-based map visualization |
+| **Data Ingestion** | [sodapy](https://github.com/xmunoz/sodapy) | MIT | Socrata Open Data API client for fetching NYC EMS & health records |
+| **Configuration** | [python-dotenv](https://github.com/theskumar/python-dotenv) | BSD 3-Clause | Loading local environment variables and API credentials |
