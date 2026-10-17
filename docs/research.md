@@ -11,3 +11,6 @@ Freeman, H. (2026) 'FDNY ambulance response times eclipse 13 minutes', The Chief
 
 U.S. Census Bureau (no date) 'New York city, New York', United States Census Bureau. Available at: https://data.census.gov/profile/New_York_city,_New_York?g=160XX00US3651000 (Accessed: 17 October 2026).
 - To gather population statistics
+
+New York State Climate Impacts Assessment (2026) 'Climate Impact Spotlight: New York City', New York State Climate Impacts Assessment. Available at: https://nysclimateimpacts.org/explore-by-region/new-york-city/ (Accessed: 17 October 2026).
+- To gather specific climate data effecting New York weather
