@@ -21,5 +21,6 @@ We selected NYC because it is a megacity that has large amounts of data suggesti
 
 ## Our Solution 
 Our solution will optimise the location and routing of ambulances in New York so that they do not have as far to travel to reach the site of an incident.
+
 The user will input the weather, time of year and calls currently coming in and use this with an AI model based on past data to predict where to base ambulances at that specific time.
 
