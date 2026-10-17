@@ -1,0 +1,10 @@
+pandas
+numpy
+lightgbm
+ortools
+simpy
+osmnx
+geopandas
+streamlit
+pydeck
+pytest
