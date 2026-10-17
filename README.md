@@ -49,7 +49,7 @@ We will use open, publicly available datasets:
 All data is open, properly licensed and contains no personal information.
 
 
-## Open-Source Libraries Usage
+## Open-Source Libraries and Tools Usage
 
 The project uses the following libraries and tools for its Python workflows and browser-based PulseNYC simulation:
 
