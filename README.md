@@ -53,26 +53,21 @@ All data is open, properly licensed and contains no personal information.
 
 The project uses the following libraries and tools for its Python workflows and browser-based PulseNYC simulation:
 
-| Component | Open-Source Library | License | Usage in Architecture |
+| Component | Open-source library | License | Usage in project |
 | :--- | :--- | :--- | :--- |
-| **Data Processing** | [pandas](https://github.com/pandas-dev/pandas) | BSD 3-Clause | Cleaning, aggregation, and spatial crosswalk operations |
-| **Matrix & Math** | [NumPy](https://github.com/numpy/numpy) | BSD 3-Clause | Array manipulation and Haversine straight-line distance calculations |
-| **Network Retrieval** | [OSMnx](https://github.com/gboeing/osmnx) | MIT | Downloading drivable street networks, imputing speeds, and travel times |
-| **Graph Analysis** | [NetworkX](https://github.com/networkx/networkx) | BSD 3-Clause | Calculating the mathematically quickest route through the street graph |
-| **Spatial Data Handling**| [GeoPandas](https://github.com/geopandas/geopandas) | BSD 3-Clause | Managing route geometries and enabling `.explore()` interactive maps |
-| **Spatial Prototyping** | [Folium](https://github.com/python-visualization/folium) | MIT | Interactive Leaflet-based map visualization |
-| **Map Categorization** | [mapclassify](https://github.com/pysal/mapclassify) | BSD 3-Clause | Backend dependency for rendering GeoPandas interactive maps |
-| **Data Ingestion** | [sodapy](https://github.com/xmunoz/sodapy) | MIT | Socrata Open Data API client for fetching NYC EMS & health records |
-| **Configuration** | [python-dotenv](https://github.com/theskumar/python-dotenv) | BSD 3-Clause | Loading local environment variables and API credentials |
-| **Simulation Interface** | [React](https://github.com/facebook/react) | MIT | Simulation controls, interface components, and state updates |
-| **Browser Rendering** | [React DOM](https://github.com/facebook/react) | MIT | Rendering the React simulation interface in the browser |
-| **Simulation Language** | [TypeScript](https://github.com/microsoft/TypeScript) | Apache 2.0 | Type checking for the custom simulation engine and interface |
-| **Interactive Mapping** | [Leaflet](https://github.com/Leaflet/Leaflet) | BSD 2-Clause | Maps, ambulance and incident markers, coverage circles, and route lines |
-| **React Map Integration** | [React Leaflet](https://github.com/PaulLeCam/react-leaflet) | Hippocratic 2.1 | Connecting Leaflet map layers and controls to React components |
-| **Icons** | [Lucide React](https://github.com/lucide-icons/lucide) | ISC | Icon library included as a simulation dependency |
-| **Interface Styling** | [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) | MIT | Layout, colours, typography, and simulation control styling |
-| **CSS Processing** | [PostCSS](https://github.com/postcss/postcss) | MIT | Processing simulation styles during development and builds |
-| **CSS Compatibility** | [Autoprefixer](https://github.com/postcss/autoprefixer) | MIT | Adding browser compatibility prefixes to CSS |
-| **Development and Builds** | [Vite](https://github.com/vitejs/vite) | MIT | Local development server and production application builds |
-| **React Build Integration** | [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react) | MIT | React transformation and fast refresh during development |
-| **Type Definitions** | [@types/react, @types/react-dom, @types/leaflet](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT | TypeScript definitions for React, React DOM, and Leaflet |
+| **Data processing** | [pandas](https://github.com/pandas-dev/pandas) | BSD 3-Clause | Loading, cleaning, and aggregating incident and forecast data |
+| **Numerical computing** | [NumPy](https://github.com/numpy/numpy) | BSD 3-Clause | Array calculations for forecasting, risk scoring, and travel-time calculations |
+| **Forecasting** | [LightGBM](https://github.com/microsoft/LightGBM) | MIT | Training and running the incident-demand forecasting model |
+| **Routing assignment** | [SciPy](https://github.com/scipy/scipy) | BSD 3-Clause | Hungarian assignment in the Python routing policy |
+| **Python dashboard** | [Streamlit](https://github.com/streamlit/streamlit) | Apache 2.0 | Python dashboard framework; the current dashboard is a skeleton |
+| **Web interface** | [React](https://github.com/facebook/react) | MIT | Building the PulseNYC simulation interface |
+| **Browser rendering** | [React DOM](https://github.com/facebook/react) | MIT | Rendering the React interface in the browser |
+| **Web mapping** | [Leaflet](https://github.com/Leaflet/Leaflet) | BSD 2-Clause | Rendering the interactive map |
+| **React map integration** | [React Leaflet](https://github.com/PaulLeCam/react-leaflet) | Hippocratic License 2.1 | Connecting Leaflet maps and map layers to React |
+| **Frontend language** | [TypeScript](https://github.com/microsoft/TypeScript) | Apache 2.0 | Implementing the browser simulation engine and interface |
+| **Frontend build tooling** | [Vite](https://github.com/vitejs/vite) | MIT | Running the development server and building the frontend |
+| **Frontend styling** | [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) | MIT | Styling the PulseNYC interface |
+| **CSS processing** | [PostCSS](https://github.com/postcss/postcss) | MIT | Processing frontend CSS |
+| **CSS compatibility** | [Autoprefixer](https://github.com/postcss/autoprefixer) | MIT | Adding browser compatibility prefixes to CSS |
+| **Icons** | [Lucide React](https://github.com/lucide-icons/lucide) | ISC | Providing icons for the frontend |
+| **React build integration** | [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react) | MIT | Enabling React support and fast refresh in Vite |
