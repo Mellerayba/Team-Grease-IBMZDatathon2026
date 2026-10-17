@@ -63,7 +63,6 @@ The project uses the following libraries and tools for its Python workflows and 
 | **Web interface** | [React](https://github.com/facebook/react) | MIT | Building the PulseNYC simulation interface |
 | **Browser rendering** | [React DOM](https://github.com/facebook/react) | MIT | Rendering the React interface in the browser |
 | **Web mapping** | [Leaflet](https://github.com/Leaflet/Leaflet) | BSD 2-Clause | Rendering the interactive map |
-| **React map integration** | [React Leaflet](https://github.com/PaulLeCam/react-leaflet) | Hippocratic License 2.1 | Connecting Leaflet maps and map layers to React |
 | **Frontend language** | [TypeScript](https://github.com/microsoft/TypeScript) | Apache 2.0 | Implementing the browser simulation engine and interface |
 | **Frontend build tooling** | [Vite](https://github.com/vitejs/vite) | MIT | Running the development server and building the frontend |
 | **Frontend styling** | [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) | MIT | Styling the PulseNYC interface |
