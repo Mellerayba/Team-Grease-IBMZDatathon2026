@@ -6,7 +6,7 @@
     python scripts/fetch_data.py census       # only Census ACS (needs CENSUS_API_KEY)
 
 Optional env vars:
-    SOCRATA_APP_TOKEN  raises NYC Open Data rate limits (free)
+    SOCRATA_APP_TOKEN  raises NYC Open Data rate limits (free). The team's token is in notebooks/HarryRowlands.ipynb
     CENSUS_API_KEY     required for ACS; free at https://api.census.gov/data/key_signup.html
     EMS_YEARS          comma list, default 2019,2021,2022 (2020 skipped: COVID distorts demand;
                        weather file ends 2022-10-25)
@@ -70,13 +70,25 @@ def socrata_csv(base, rid, out, params=None, page=50_000):
 
 
 def fetch_ems():
+    """One file per month (small offsets are much faster than deep paging a 30M-row table), then one file per year."""
     years = [int(y) for y in os.environ.get("EMS_YEARS", "2019,2021,2022").split(",")]
+    parts = RAW / "ems_parts"; parts.mkdir(exist_ok=True)
     for y in years:
-        socrata_csv(NYC, "76xm-jjuj", RAW / f"ems_incidents_{y}.csv.gz", {
-            "$select": ",".join(EMS_COLS),
-            "$where": f"incident_datetime between '{y}-01-01T00:00:00' and '{y}-12-31T23:59:59'",
-            "$order": "incident_datetime,incident_id",
-        })
+        year_file = RAW / f"ems_incidents_{y}.csv.gz"
+        if year_file.exists():
+            print(f"skip {year_file.name}"); continue
+        month_files = []
+        for m in range(1, 13):
+            end = pd.Timestamp(year=y, month=m, day=1) + pd.offsets.MonthBegin(1)
+            out = parts / f"ems_{y}_{m:02d}.csv.gz"
+            socrata_csv(NYC, "76xm-jjuj", out, {
+                "$select": ",".join(EMS_COLS),
+                "$where": f"incident_datetime >= '{y}-{m:02d}-01T00:00:00' and incident_datetime < '{end:%Y-%m-%d}T00:00:00'",
+                "$order": "incident_datetime,incident_id",
+            })
+            month_files.append(out)
+        pd.concat(pd.read_csv(f, dtype=str) for f in month_files).to_csv(year_file, index=False)
+        print(f"wrote {year_file.name}")
 
 
 def fetch_small():
