@@ -1,0 +1,16 @@
+#Project Dispatch Decision Timeline (non-technical)#
+Our original idea for our IBM Z datathon was to create an AI model that in real time directs police vehicles to the area of a crime before the emergency services are called using past data to predict where crime would occur next.
+This idea would have been a good solution for Theme 1: Real time AI for critical decisions because choices have to be made at each moment on where to send police based upon a large dataset.
+
+Why not:
+Ethical issues - previously overpoliced areas would become more policed, police surveillance of an area can escalate problems and a quicker response times are not as necessary as with ambulances.
+
+New Idea:
+Reducing ambulance response times and routing by using live data to predict where an emergency could happen so it is in the right place at the right time.
+
+Why:
+We do not have the ethical issues associated with the police as ambulances are seen as less of a threat and are seen as less controversial than police cars.
+
+Choice of City:
+We then needed to decide upon a city to implement this on initially.
+After some research, we found that New York has an increasing response time in their ambulances. - "FDNY ambulances took, on average, 13 minutes and nine seconds to respond to life-threatening medical emergencies in Fiscal Year 2026, over one minute and 48 seconds longer than the previous year" - 
