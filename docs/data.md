@@ -32,8 +32,8 @@ Run `DarraghC.ipynb` first (about 10 seconds once the raw files are cached), the
 - zone context through `zipcode -> zone`: `zone, borough, lon, lat, pop_est, asthma_rate_per_10k, dist_nearest_hospital_km, n_hospitals, n_firehouses` (+ Census fields with a key)
 - `eval_is_heat_day`, `eval_is_heavy_rain_day`: **slice results on heat days only, never model inputs** (they use the whole day's weather)
 
-`panel` and the model cells are **not** modified: the model takes every column of `panel` as a feature, so merging into it would silently change the model.
-Memory: about 4 GB for two years of data, so roughly 14 GB for all of 2016-2022; use a large machine or trim years.
+`full` is the modelling table, but the model uses an **explicit feature list** (`FEATURE_GROUPS`, `src/grease/forecast/features.py`), so adding columns here never changes the model by accident. See `docs/decisions.md`.
+Memory: about 0.7 GB per year of data in `full`, plus copies for the train / validation / test slices, so all of 2016-2022 needs roughly 10 GB; set `EMS_YEARS` in the load cell to use fewer years.
 For a model that predicts `h` buckets ahead, weather must be shifted back `h` buckets so it only uses what is known at forecast time (`src/grease/data/features.py` does this).
 
 ## Decisions and assumptions

@@ -15,11 +15,14 @@ State below is as of **2026-10-17, afternoon**.
 |---|---|---|---|
 | D1 | The units we model are **ambulances** (not mobile clinics). Mobile clinics can be mentioned later as a generalisation | Decided | Gives a measurable response-time metric and fits the EMS data; the guidebook rewards a working demo |
 | D2 | **EMS data is fetched in `HarryRowlands.ipynb`** (API -> `notebooks/ems_raw/`). All other data is fetched and cleaned in `DarraghC.ipynb` and linked onto the EMS table in the Harry notebook | Decided | One owner per data source; keeps the model notebook readable |
-| D3 | **Do not change the model yet.** Link all the data in first (the table `full`), then decide features from there | Decided | Avoid changing the model and the data at the same time; we need a clean before / after |
-| D4 | Other data is joined into a **separate table `full`**, never into `panel` | Decided | The model builds its feature list from every column of `panel`, so merging into it would silently change the model (and a text column would break LightGBM) |
+| D3 | ~~**Do not change the model yet.**~~ **Superseded by D10 (2026-10-17).** Link all the data in first (the table `full`), then decide features from there | Decided | Avoid changing the model and the data at the same time; we need a clean before / after |
+| D4 | ~~Other data is joined into a separate table `full`, never into `panel`~~ **Superseded (2026-10-17):** `full` is now the modelling table, and the model uses an explicit feature list (M2), so nothing is picked up by accident | Superseded | The model builds its feature list from every column of `panel`, so merging into it would silently change the model (and a text column would break LightGBM) |
 | D5 | `eval_is_heat_day` and `eval_is_heavy_rain_day` are **never model inputs**; they only slice results | Decided | They use the whole day's weather, which is unknown when a forecast is made (leakage) |
 | D6 | Weather comes from the **Open-Meteo API in New York local time** | Decided | The CSV in the repo is UTC (4-5 hours out of step with EMS timestamps) and blank for Oct 16 and Oct 20-25 2022 |
 | D7 | Spatial unit for the simulator and optimizer is the **zone (MODZCTA)**; travel times use zone centroids | Proposed | 99.9% of incidents with a ZIP map to a zone; joins to Census and boundary data. The model still uses raw `zipcode` (see F2) |
+| D8 | **The model's output is expected demand**: calibrated expected incidents per zone for the next 30 min / 1 h / 2 h / 3 h, split into critical and other acuity. The model inputs are the issue time plus what is known at that moment (recent counts, weather, calendar), not time of day alone | Implemented, awaiting full-data run | The optimizer needs additive rates, not an ordinal score. Rates can be validated against held-out data; a hand-weighted index cannot. Time of day alone is only the historical average, which is our "scheduled" comparison policy and what we must beat |
+| D9 | **The risk index is a derived layer, not a model.** Risk = need-weighted expected demand (critical calls count more, e.g. 3:1, a stated assumption) x a vulnerability factor (poverty, no-vehicle households, asthma rate), shown as a 0-100 percentile map. Later it can add the coverage gap (expected response time minus the 8-minute target) once the simulator exists | Implemented, awaiting full-data run | Keeps the forecast testable and the policy weights explicit and adjustable without retraining. Vulnerability data is constant per zone, so it belongs in the weights (and the optimizer's equity floor), not in the forecast |
+| D10 | **D3 (model frozen) ends** once the EMS download is complete and the unchanged model has been run once on real data and its results recorded here | Implemented, awaiting full-data run | We need an honest before / after, but the model has to change to produce D8's output |
 
 ---
 
@@ -45,7 +48,20 @@ About 4 GB in memory for two years, so roughly 14 GB for 2016-2022.
 
 ---
 
-## 3. The model we have now (`HarryRowlands.ipynb`, unchanged)
+## 3. The model
+
+### Current (rewritten 2026-10-17, implements D8-D10)
+**Output:** expected incidents per ZIP for the next 30 min / 1 h / 2 h / 3 h, separately for critical and other calls (8 LightGBM Poisson models), plus a derived 0-100 risk index per zone.
+**Code:** `src/grease/forecast/` (`features.py`, `lgbm.py`, `baseline.py`, `evaluate.py`, `zones.py`), `src/grease/risk.py`, driven from `HarryRowlands.ipynb`; 10 unit tests in `tests/test_forecast.py`.
+**Default features (29):** ZIP id; current and recent counts (`y`, `y_critical`, lags 30 min to 1 week, rolling sums 2 h / 6 h / 24 h, recent critical sum); time (`hour`, `dow`, `month`, `is_weekend`); weather (temperature, feels-like, rain now and 3 h, wind); holiday flags; zone location, population estimate and borough. Change `FEATURE_GROUPS` in the notebook to run the ablations in section 4.
+**Split:** train 2016 to Sep 2021, validation Oct-Dec 2021 (early stopping), test 2022, with a 3-hour gap before each boundary so no training target reaches into the next period.
+**Baselines (same rows, same targets):** historical mean for that ZIP x weekday x time; that mean x a citywide recent-surge multiplier; the same window one week earlier.
+**Reported:** MAE, Poisson deviance and bias, overall and on heat days, heavy-rain days, the 20 busiest ZIPs and each borough; calibration by prediction decile; feature importance.
+
+**Status: built and tested, not yet run on the real split.** Only a plumbing smoke test has run (2017 data only; trained on Jan-Mar and tested on Jun-Dec, so the numbers mean nothing). It showed the model about 0-3% better than the historical mean on MAE, that the surge multiplier did not help, and that weather had very low importance, but with 3 months of training and no 2020-2022 data none of that is a finding. The real run needs the complete EMS download.
+
+### Previous model (original, replaced)
+Predicted incidents in the *same* bucket from lags (one-step ahead only), all columns of `panel` as features, 60 / 15 / 25 percent split by time fraction, and a baseline that predicted zero for some cells. Its saved results came from a 33-day 2005 sample and should not be quoted. Limitations L1-L7 below are what the rewrite fixes.
 
 **Task:** predict incidents per **ZIP code per 30-minute bucket** (`y`).
 **Model:** LightGBM, Poisson objective (`n_estimators` 2000, learning rate 0.03, 63 leaves, min 50 samples per leaf, 80% row and column subsampling, early stopping after 100 rounds).
@@ -56,7 +72,7 @@ About 4 GB in memory for two years, so roughly 14 GB for 2016-2022.
 
 **Saved results are not usable.** The stored outputs (MAE 0.341 vs baseline 0.356; deviance 0.644 vs 2.242) were produced on a 33-day sample from January 2005, not on 2016-2022. Do not quote them.
 
-Known limitations to address once the data is complete:
+Limitations of the previous model (all addressed by the rewrite, see section 5):
 
 | # | Limitation | Why it matters |
 |---|---|---|
@@ -83,7 +99,7 @@ Plan: change one group at a time and compare against the same baseline, so each 
 | F5 | **Weather features** | none; current temperature and rain only; the full set (temperature, feels-like, humidity, rain now / 3 h / 24 h, wind, cloud, 24 h max, hot / cold / heat-stress flags) | Start with temperature, feels-like, rain now and 3 h, wind; add the rest only if they help. Always use values from `h` buckets earlier, never future weather | Open | Ablation overall **and on heat days** (the case for weather is surges) |
 | F6 | **Calendar features** (holiday, day before / after) | add / skip | Add | Proposed | Ablation; only 72 holidays in the data, so expect a small effect |
 | F7 | **Zone context** (borough, lon / lat, population, distance to nearest hospital, hospital / firehouse counts) | add all; add location and population only; skip | Test location, population and borough; **skip asthma rate and survey data as model inputs** (constant within a borough, so redundant with the zone identity) | Open | Ablation; the main value of the health data is the fairness analysis and the pitch, not forecast accuracy |
-| F8 | **Target definition** | all incidents; only mid / low acuity (what the plan targets); both | Keep all incidents for the forecaster; add a low / mid-acuity target once severity bands are confirmed | Open | Depends on the severity-code meaning (below) |
+| F8 | **Target definition** | all incidents; only mid / low acuity; critical vs other | Per D8: two targets, **critical** and **other** (sum = all), each for the next 30 min / 1 h / 2 h / 3 h. Acuity bands need F9 confirmed | Proposed | Depends on the severity-code meaning (F9). The current 4-column download has `initial_severity_level_code`, which is enough to start |
 | F9 | **Severity code meaning** | 1 = most critical ... 8 = least (assumed) | Assume as stated | Open | Confirm in the NYC data dictionary |
 | F10 | **COVID year 2020** | include as is; include with a flag; drop from training | Include with a `year` / covid flag, then test dropping it | Open | Ablation; demand dropped about 8% in 2020 (1.41M vs 1.53M in 2019) |
 | F11 | **Train / validation / test split** | by fraction (now); by date | Train 2016-2021 (2020 per F10), validate on the last months of 2021, **test on 2022** and report heat days separately. Weather now covers all of 2022 | Proposed | Needs the full EMS download |
@@ -93,9 +109,34 @@ Plan: change one group at a time and compare against the same baseline, so each 
 
 ---
 
-## 5. Changelog
+## 5. Changes the model notebook needs to deliver D8 (to do)
+
+What stays: LightGBM with the Poisson objective, the ZIP x 30-minute panel, the lag and rolling-sum features.
+
+| # | Change | Where in `HarryRowlands.ipynb` | Priority | Status |
+|---|---|---|---|---|
+| M1 | **Predict a future window.** Add targets `y_next_30m`, `y_next_1h`, `y_next_2h`, `y_next_3h` = incidents in the next 1 / 2 / 4 / 6 buckets (`g.shift(-k)` summed forward). Features stay as of the issue bucket `t`, and now include `y` at `t` itself (`lag_0`); rolling sums include the current bucket. Train one model per horizon in a loop | Panel / lag cell and the model cell | Must | Done (targets are `t_<acuity>_<horizon>`, e.g. `t_critical_1h`) |
+| M2 | **Use the linked data.** Build the feature list from `full` with an explicit allowlist: weather (F5), calendar (F6), zone context (F7). Exclude `y*` targets, `bucket`, every `eval_*` column and `zone` (duplicates `zipcode`). Pass text columns such as `borough` as categorical | `full` cell, `features = ...` line | Must | Done |
+| M3 | **Dated split** (F11): train 2016-2021, validate late 2021, test 2022; plus a heat-day slice of the test set using `eval_is_heat_day` | Split lines | Must | Done (needs 2022 data to run) |
+| M4 | **Fair baseline** (F12): same horizons, zipcode x weekday x hour mean x recent-surge multiplier; report the "same bucket last week" baseline too | Baseline cell | Must | Done |
+| M5 | **Acuity targets** (F8): count critical and other incidents separately in the panel (from `initial_severity_level_code`), repeat M1 for each | Panel cell | Should | Done (critical = severity 1-3, assumption F9) |
+| M6 | **Calibration check:** predicted vs actual mean by prediction decile, per horizon. The optimizer uses the magnitudes, so they must be right, not just the ranking | After predictions | Should | Done |
+| M7 | **Aggregate to zones** by summing ZIP-level predictions through `zip_to_zone` (rates add, so no retraining is needed to move from ZIP to zone, which partly settles F2) | After predictions | Must for the optimizer | Done |
+| M8 | **Make it callable:** move the logic into `src/grease/forecast/` (features at a given time from recent history, `fit`, `predict(now) -> expected demand per zone`), and save the trained models. The simulator calls it every 15-30 simulated minutes | New code | Must | Done: `ForecastModel.save/load` and `features_at`, tested; simulator integration pending |
+| M9 | **Risk layer** (D9) in `src/grease/risk.py` with the weights in `config.py` as stated assumptions, and a unit test | New code | Should | Done (weights are stated assumptions) |
+| M10 | Replace the `eval_X` / `eval_y` fit arguments with the standard `eval_set=[(X, y)]` so it also runs on the VM's LightGBM; remove the dead and duplicated cells | Model cell | Must | Done: uses `eval_X` / `eval_y` when LightGBM supports them, falls back to `eval_set` (deprecated in 4.7 but all that older versions have) |
+
+All ten are implemented. We skipped the intermediate "unchanged model on real data" baseline run that D10 suggested, because the original model cannot produce D8's output; the honest before / after is now the new model against the three baselines.
+
+**Next:** run the real split once the EMS download is complete, record the results here, then work through the feature questions in section 4 (F5-F7 ablations, F10 COVID, F1 horizons).
+
+---
+
+## 6. Changelog
 
 | Date | Change |
 |---|---|
 | 2026-10-17 | Log created. Data linked into `full`; model deliberately left unchanged (D3, D4) |
 | 2026-10-17 | Census fetched and joined into the zone context (affects F7: population, income, vehicle access and poverty are now candidate features) |
+| 2026-10-17 | Added D8-D10 (model output = expected demand; risk index is a derived layer; D3 ends after the baseline run), revised F8, and listed the model changes needed (section 5) |
+| 2026-10-17 | Model rewritten per D8-D10 and M1-M10 (code in `src/grease/forecast/`, notebook updated, 10 tests pass). Smoke-tested on 2017 only; real run pending the complete EMS download |

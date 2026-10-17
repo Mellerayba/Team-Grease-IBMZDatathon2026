@@ -8,3 +8,6 @@ geopandas
 streamlit
 pydeck
 pytest
+scikit-learn
+python-dotenv
+sodapy
