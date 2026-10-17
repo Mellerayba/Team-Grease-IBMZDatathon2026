@@ -23,6 +23,7 @@ State below is as of **2026-10-17, afternoon**.
 | D8 | **The model's output is expected demand**: calibrated expected incidents per zone for the next 30 min / 1 h / 2 h / 3 h, split into critical and other acuity. The model inputs are the issue time plus what is known at that moment (recent counts, weather, calendar), not time of day alone | Implemented, awaiting full-data run | The optimizer needs additive rates, not an ordinal score. Rates can be validated against held-out data; a hand-weighted index cannot. Time of day alone is only the historical average, which is our "scheduled" comparison policy and what we must beat |
 | D9 | **The risk index is a derived layer, not a model.** Risk = need-weighted expected demand (critical calls count more, e.g. 3:1, a stated assumption) x a vulnerability factor (poverty, no-vehicle households, asthma rate), shown as a 0-100 percentile map. Later it can add the coverage gap (expected response time minus the 8-minute target) once the simulator exists | Implemented, awaiting full-data run | Keeps the forecast testable and the policy weights explicit and adjustable without retraining. Vulnerability data is constant per zone, so it belongs in the weights (and the optimizer's equity floor), not in the forecast |
 | D10 | **D3 (model frozen) ends** once the EMS download is complete and the unchanged model has been run once on real data and its results recorded here | Implemented, awaiting full-data run | We need an honest before / after, but the model has to change to produce D8's output |
+| D11 | **Be honest about the IBM Z accelerator.** It does not fix our memory problem or speed up training. Right-size the VM first (event code, ask the SMEs), measure with `scripts/vm_check.py`, and only claim accelerator use if the VM shows the `nnpa` CPU flag and we actually run inference through it | Proposed | See section 6. Judges score *use of platform capabilities*, with screenshots as evidence, so the evidence has to be real |
 
 ---
 
@@ -132,7 +133,22 @@ All ten are implemented. We skipped the intermediate "unchanged model on real da
 
 ---
 
-## 6. Changelog
+## 6. Platform notes (IBM LinuxONE)
+
+What we know, and where it comes from:
+- **Guidebook:** gives no hardware specification. Judging criterion 3 rewards AI/ML running on LinuxONE and "platform capabilities such as containerisation, security, scalability and compute resources, using screenshots as evidence". The two provided AI/ML labs are mandatory.
+- **VM image** ([jupyter-lab-ml README](https://github.com/linuxone-community-cloud/jupyter-lab-ml)): Ubuntu 24.04 container with TensorFlow, PyTorch, XGBoost, scikit-learn, Keras and Llama.cpp. It says to use the `SSF2026` event code "to get an instance with sufficient resources for ML notebooks", and states no vCPU or memory figures. It mentions z17's Telum II on-chip AI inference accelerator. Snap ML and LightGBM are not in the list it describes (LightGBM does import on our VM).
+- **What the accelerator does** ([IBM Z Accelerated for Snap ML](https://github.com/IBM/ibmz-accelerated-for-snapml), [Snap ML model import docs](https://snapml.readthedocs.io/en/latest/model_import.html)): on z16 and later, Snap ML can run **inference** of tree-ensemble models on the Integrated Accelerator for AI through zDNN. On older machines it runs on the CPU with no changes. It does not accelerate training or data preparation.
+- **Could our LightGBM models use it?** The Snap ML import table lists LightGBM regressors (formats PMML, ONNX, text), but the same page says elsewhere that only PMML is supported, and it does not say whether the Poisson objective is supported. Unverified: needs a test on the VM. Pickled models are not portable between x86 and s390x (endianness); LightGBM text files are.
+- **Installing Snap ML:** its GitHub page distributes it as a container image from `icr.io` that needs credentials; it does not mention a pip package. Unverified whether `pip install snapml` works on the VM.
+
+What we do not know (run `python scripts/vm_check.py --years 2` on the VM): how much memory the instance really has available, whether a container limit applies, whether the CPU shows the `nnpa` flag, and which of Snap ML / ONNX Runtime / TensorFlow / PyTorch are installed.
+
+Why this matters: the notebook kernel died while building the panel for the latest data, which needs about 1-2 GB, so the VM probably has very little memory free (or old kernels are holding it). The accelerator cannot fix that. Options, in order: (1) check `free -h`, shut down old kernels, and confirm the instance was created with the `SSF2026` event code; (2) ask the IBM SMEs on Discord for a larger instance; (3) train where there is memory and run inference and the simulator on the VM (the saved models are portable text files), which still shows AI running on LinuxONE; (4) load fewer years.
+
+---
+
+## 7. Changelog
 
 | Date | Change |
 |---|---|
@@ -141,3 +157,4 @@ All ten are implemented. We skipped the intermediate "unchanged model on real da
 | 2026-10-17 | Added D8-D10 (model output = expected demand; risk index is a derived layer; D3 ends after the baseline run), revised F8, and listed the model changes needed (section 5) |
 | 2026-10-17 | Model rewritten per D8-D10 and M1-M10 (code in `src/grease/forecast/`, notebook updated, 10 tests pass). Smoke-tested on 2017 only; real run pending the complete EMS download |
 | 2026-10-17 | Memory rewrite after the VM kernel died (out of memory at the linking cell): EMS streamed one year at a time, only the needed columns are linked (built from small lookups), targets computed one at a time, 8 models share one float32 dataset. Measured peak for one year of data fell from 4.1 GB to 1.9 GB; 15 tests pass |
+| 2026-10-17 | Added D11 and section 6 (platform notes) and `scripts/vm_check.py` after the VM kernel died again at the panel cell |
