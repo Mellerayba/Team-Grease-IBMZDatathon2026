@@ -51,7 +51,7 @@ All data is open, properly licensed and contains no personal information.
 
 ## Open-Source Libraries Usage
 
-This project is built entirely on open-source libraries and frameworks running on IBM LinuxONE:
+The project uses the following libraries and tools for its Python workflows and browser-based PulseNYC simulation:
 
 | Component | Open-Source Library | License | Usage in Architecture |
 | :--- | :--- | :--- | :--- |
@@ -59,3 +59,15 @@ This project is built entirely on open-source libraries and frameworks running o
 | **Spatial Prototyping** | [Folium](https://github.com/python-visualization/folium) | MIT | Interactive Leaflet-based map visualization |
 | **Data Ingestion** | [sodapy](https://github.com/xmunoz/sodapy) | MIT | Socrata Open Data API client for fetching NYC EMS & health records |
 | **Configuration** | [python-dotenv](https://github.com/theskumar/python-dotenv) | BSD 3-Clause | Loading local environment variables and API credentials |
+| **Simulation Interface** | [React](https://github.com/facebook/react) | MIT | Simulation controls, interface components, and state updates |
+| **Browser Rendering** | [React DOM](https://github.com/facebook/react) | MIT | Rendering the React simulation interface in the browser |
+| **Simulation Language** | [TypeScript](https://github.com/microsoft/TypeScript) | Apache 2.0 | Type checking for the custom simulation engine and interface |
+| **Interactive Mapping** | [Leaflet](https://github.com/Leaflet/Leaflet) | BSD 2-Clause | Maps, ambulance and incident markers, coverage circles, and route lines |
+| **React Map Integration** | [React Leaflet](https://github.com/PaulLeCam/react-leaflet) | Hippocratic 2.1 | Connecting Leaflet map layers and controls to React components |
+| **Icons** | [Lucide React](https://github.com/lucide-icons/lucide) | ISC | Icon library included as a simulation dependency |
+| **Interface Styling** | [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) | MIT | Layout, colours, typography, and simulation control styling |
+| **CSS Processing** | [PostCSS](https://github.com/postcss/postcss) | MIT | Processing simulation styles during development and builds |
+| **CSS Compatibility** | [Autoprefixer](https://github.com/postcss/autoprefixer) | MIT | Adding browser compatibility prefixes to CSS |
+| **Development and Builds** | [Vite](https://github.com/vitejs/vite) | MIT | Local development server and production application builds |
+| **React Build Integration** | [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react) | MIT | React transformation and fast refresh during development |
+| **Type Definitions** | [@types/react, @types/react-dom, @types/leaflet](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT | TypeScript definitions for React, React DOM, and Leaflet |
