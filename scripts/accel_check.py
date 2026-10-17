@@ -20,6 +20,7 @@ import ctypes.util
 import glob
 import os
 import platform
+import re
 import subprocess
 import sys
 import tempfile
@@ -96,6 +97,28 @@ def export_pmml(nyoka, sk_model, n_features, path):
     fn(Pipeline([("model", sk_model)]), [f"f{i}" for i in range(n_features)], "y", str(path))
 
 
+def with_algorithm_name(pmml_path, name):
+    """Snap ML's importer requires algorithmName on the MiningModel element (it lists LightGBM / lightgbm / XGBoost ...); Nyoka does not write it."""
+    text = Path(pmml_path).read_text()
+    text = re.sub(r"<MiningModel([^>]*?)>", lambda m: m.group(0) if "algorithmName" in m.group(1) else f'<MiningModel{m.group(1)} algorithmName="{name}">', text, count=1)
+    out = Path(str(pmml_path).replace(".pmml", f"_{name}.pmml"))
+    out.write_text(text)
+    return out
+
+
+def pick_importable(snapml, pmml_path):
+    """Try the algorithm names Snap ML's library lists for LightGBM; return the first PMML file it imports, or None."""
+    for name in ("LightGBM", "lightgbm"):
+        patched = with_algorithm_name(pmml_path, name)
+        try:
+            snapml.import_model(str(patched), input_type="pmml", tree_format="compress_trees")
+            say(f"Snap ML accepts the PMML with algorithmName=\"{name}\"")
+            return patched
+        except Exception as e:
+            say(f"algorithmName=\"{name}\": import FAILED: {type(e).__name__}: {str(e)[:300]}")
+    return None
+
+
 def snapml_test(snapml, pmml_path, booster, n_features, rows):
     rng = np.random.default_rng(1)
     X = rng.normal(size=(rows, n_features)).astype("float32")
@@ -142,7 +165,11 @@ def main():
     try:
         export_pmml(nyoka, sk, nf, d / "synthetic.pmml")
         say(f"exported PMML ({(d / 'synthetic.pmml').stat().st_size / 1e6:.1f} MB)")
-        snapml_test(snapml, d / "synthetic.pmml", sk.booster_, nf, args.rows)
+        ok_file = pick_importable(snapml, d / "synthetic.pmml")
+        if ok_file is not None:
+            snapml_test(snapml, ok_file, sk.booster_, nf, args.rows)
+        else:
+            say("VERDICT: Snap ML did not accept the exported PMML (see the errors above: each names the unsupported item and the line).")
     except Exception as e:
         say(f"PMML export or Snap ML test failed: {type(e).__name__}: {str(e)[:300]}")
     header("3B. Our real model (critical_1h)")
