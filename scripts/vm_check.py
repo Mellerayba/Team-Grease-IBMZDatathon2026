@@ -10,6 +10,7 @@ import importlib
 import os
 import platform
 import resource
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -36,7 +37,7 @@ def platform_facts() -> None:
     section("Platform")
     print(f"machine        : {platform.machine()} ({sys.byteorder}-endian)")
     print(f"os             : {platform.platform()}")
-    print(f"python         : {platform.python_version()}")
+    print(f"python         : {platform.python_version()} ({sys.executable})")
     print(f"logical cpus   : {os.cpu_count()}")
     cpu_max = read("/sys/fs/cgroup/cpu.max").split()
     if cpu_max and cpu_max[0] != "max":
@@ -81,13 +82,27 @@ def accelerator_facts() -> None:
 
 
 def library_facts() -> None:
-    section("Libraries")
+    """Each library is imported in its own subprocess, so one that crashes the interpreter (possible on a new architecture) cannot cut the report short."""
+    section("Libraries (each imported in its own process, 90 s limit)")
+    try:
+        import numpy  # noqa: F401
+    except ImportError:
+        print("numpy is missing in THIS Python. If the notebooks work for you, you ran the system python; use the notebook environment instead:")
+        print("  /opt/venv/bin/python scripts/vm_check.py --years 2")
     for name in ("numpy", "pandas", "lightgbm", "sklearn", "snapml", "onnxruntime", "xgboost", "torch", "tensorflow"):
+        code = f"import {name} as m; print(getattr(m, '__version__', 'installed'))"
         try:
-            mod = importlib.import_module(name)
-            print(f"{name:<12}: {getattr(mod, '__version__', 'installed')}")
-        except Exception as e:                                # an import can fail in many ways on a new architecture
-            print(f"{name:<12}: not available ({type(e).__name__})")
+            r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=90)
+        except subprocess.TimeoutExpired:
+            print(f"{name:<12}: TIMED OUT after 90 s")
+            continue
+        if r.returncode == 0:
+            print(f"{name:<12}: {r.stdout.strip()}")
+        elif r.returncode < 0:
+            print(f"{name:<12}: CRASHED the interpreter (signal {-r.returncode}); do not import it in a notebook")
+        else:
+            reason = (r.stderr.strip().splitlines() or ["import failed"])[-1]
+            print(f"{name:<12}: not available ({reason[:90]})")
 
 
 def peak_rss_bytes() -> int:
@@ -102,7 +117,11 @@ def pipeline_memory(years: int) -> None:
     if not files:
         print("no notebooks/ems_raw/<year>.csv files found: run the fetch cell in HarryRowlands.ipynb first")
         return
-    from grease.forecast import features as F
+    try:
+        from grease.forecast import features as F
+    except ImportError as e:
+        print(f"cannot run the test with this Python ({e}). Use the notebook environment: /opt/venv/bin/python scripts/vm_check.py --years {years}")
+        return
     base = peak_rss_bytes()
     t0 = time.time()
     panel, rows = F.build_panel_from_csvs(files)
