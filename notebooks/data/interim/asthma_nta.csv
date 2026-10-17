@@ -1,0 +1,181 @@
+borough,nta,avg_annual_n,rate_per_10k,age_adj_rate_per_10k
+BRONX,Claremont-Bathgate,712.0,296.9,289.1
+BRONX,Eastchester-Edenwald-Baychester,453.0,158.4,158.4
+BRONX,Bedford Park-Fordham North,678.0,162.5,161.3
+BRONX,Belmont,420.0,203.6,226.0
+BRONX,Bronxdale,386.0,125.9,127.4
+BRONX,West Farms-Bronx River,385.0,143.3,142.4
+BRONX,Soundview-Castle Hill-Clason Point-Harding Park,665.0,160.3,159.0
+BRONX,Pelham Bay-Country Club-City Island,124.0,58.3,63.0
+BRONX,Co-op City,282.0,69.6,80.6
+BRONX,East Tremont,869.0,283.1,281.3
+BRONX,North Riverdale-Fieldston-Riverdale,67.0,29.5,31.1
+BRONX,Highbridge,500.0,179.2,174.5
+BRONX,Hunts Point,429.0,228.6,230.0
+BRONX,Van Cortlandt Village,351.0,90.2,90.3
+BRONX,Spuyten Duyvil-Kingsbridge,90.0,35.2,38.7
+BRONX,Kingsbridge Heights,295.0,122.0,122.7
+BRONX,Allerton-Pelham Gardens,203.0,79.8,87.0
+BRONX,Longwood,474.0,235.9,233.9
+BRONX,Melrose South-Mott Haven North,941.0,310.5,309.1
+BRONX,Morrisania-Melrose,768.0,268.6,263.4
+BRONX,University Heights-Morris Heights,799.0,198.3,193.3
+BRONX,Van Nest-Morris Park-Westchester Square,276.0,130.0,128.8
+BRONX,Fordham South,405.0,209.1,206.0
+BRONX,Mount Hope,804.0,211.5,208.6
+BRONX,Norwood,549.0,176.1,176.0
+BRONX,Williamsbridge-Olinville,907.0,183.5,185.4
+BRONX,Parkchester,255.0,103.8,104.9
+BRONX,Pelham Parkway,171.0,75.1,76.1
+BRONX,Schuylerville-Throgs Neck-Edgewater Park,260.0,73.0,73.7
+BRONX,Soundview-Bruckner,389.0,141.0,141.3
+BRONX,Westchester-Unionport,250.0,116.4,116.5
+BRONX,Woodlawn-Wakefield,531.0,156.0,160.3
+BRONX,West Concourse,594.0,216.4,211.2
+BRONX,Crotona Park East,302.0,189.2,187.6
+BROOKLYN,Brooklyn Heights-Cobble Hill,27.0,12.8,14.8
+BROOKLYN,Sheepshead Bay-Gerritsen Beach-Manhattan Beach,200.0,37.3,40.9
+BROOKLYN,Brighton Beach,72.0,25.1,28.4
+BROOKLYN,Seagate-Coney Island,385.0,157.9,174.7
+BROOKLYN,West Brighton,43.0,28.1,26.4
+BROOKLYN,Homecrest,55.0,16.8,17.0
+BROOKLYN,Gravesend,212.0,87.9,90.1
+BROOKLYN,Bath Beach,63.0,24.0,26.1
+BROOKLYN,Bensonhurst West,132.0,18.3,18.6
+BROOKLYN,Bensonhurst East,82.0,15.4,15.6
+BROOKLYN,Dyker Heights,54.0,15.6,16.4
+BROOKLYN,Bay Ridge,169.0,26.5,27.3
+BROOKLYN,Sunset Park West,281.0,66.6,70.4
+BROOKLYN,Carroll Gardens-Columbia Street-Red Hook,207.0,58.0,68.5
+BROOKLYN,Sunset Park East,185.0,36.9,38.2
+BROOKLYN,Stuyvesant Heights,867.0,165.3,165.8
+BROOKLYN,Park Slope-Gowanus,193.0,31.2,39.6
+BROOKLYN,DUMBO-Vinegar Hill-Downtown Brooklyn-Boerum Hill,391.0,96.4,111.6
+BROOKLYN,Windsor Terrace,55.0,29.2,33.0
+BROOKLYN,Kensington-Ocean Parkway,74.0,28.6,28.8
+BROOKLYN,Flatbush,744.0,92.2,93.1
+BROOKLYN,Midwood,114.0,28.9,29.9
+BROOKLYN,Madison,64.0,20.1,20.7
+BROOKLYN,Georgetown-Marine Park-Bergen Beach-Mill Basin,103.0,28.5,31.9
+BROOKLYN,Ocean Parkway South,23.0,16.9,18.4
+BROOKLYN,Canarsie,672.0,101.5,102.4
+BROOKLYN,Flatlands,442.0,80.9,82.0
+BROOKLYN,Prospect Lefferts Gardens-Wingate,783.0,142.4,151.4
+BROOKLYN,Crown Heights South,275.0,91.5,90.5
+BROOKLYN,Prospect Heights,73.0,40.3,48.3
+BROOKLYN,Fort Greene,341.0,116.2,128.4
+BROOKLYN,Clinton Hill,176.0,54.9,65.7
+BROOKLYN,Williamsburg,68.0,40.0,45.1
+BROOKLYN,North Side-South Side,178.0,38.7,50.4
+BROOKLYN,Bedford,809.0,153.1,165.7
+BROOKLYN,Greenpoint,98.0,30.8,37.8
+BROOKLYN,Bushwick North,476.0,112.4,123.0
+BROOKLYN,Bushwick South,846.0,153.4,156.7
+BROOKLYN,Ocean Hill,530.0,208.3,206.9
+BROOKLYN,Cypress Hills-City Line,364.0,104.7,103.3
+BROOKLYN,East New York (Pennsylvania Ave),554.0,278.8,274.9
+BROOKLYN,Borough Park,121.0,20.4,21.8
+BROOKLYN,East Williamsburg,218.0,70.0,78.0
+BROOKLYN,East Flatbush-Farragut,476.0,114.7,119.9
+BROOKLYN,Starrett City,121.0,113.0,137.8
+BROOKLYN,Erasmus,279.0,127.4,126.9
+BROOKLYN,Rugby-Remsen Village,622.0,145.8,151.1
+MANHATTAN,Marble Hill-Inwood,292.0,69.7,70.8
+MANHATTAN,Hamilton Heights,415.0,98.2,101.2
+MANHATTAN,Manhattanville,276.0,149.8,151.6
+MANHATTAN,Morningside Heights,351.0,77.5,87.6
+MANHATTAN,Central Harlem South,720.0,179.1,186.2
+MANHATTAN,Upper West Side,648.0,56.7,61.6
+MANHATTAN,Hudson Yards-Chelsea-Flatiron-Union Square,382.0,55.5,60.7
+MANHATTAN,Lincoln Square,186.0,33.6,37.6
+MANHATTAN,Clinton,202.0,44.4,51.8
+MANHATTAN,Midtown-Midtown South,77.0,29.5,32.1
+MANHATTAN,Turtle Bay-East Midtown,55.0,11.6,13.3
+MANHATTAN,Murray Hill-Kips Bay,217.0,49.9,60.2
+MANHATTAN,Gramercy,55.0,22.1,25.3
+MANHATTAN,East Village,151.0,38.9,46.3
+MANHATTAN,West Village,63.0,10.3,10.8
+MANHATTAN,SoHo-TriBeCa-Civic Center-Little Italy,46.0,12.8,13.3
+MANHATTAN,Battery Park City-Lower Manhattan,64.0,16.2,21.4
+MANHATTAN,Chinatown,256.0,63.0,67.5
+MANHATTAN,Lower East Side,945.0,161.9,171.8
+MANHATTAN,Lenox Hill-Roosevelt Island,69.0,9.4,10.5
+MANHATTAN,Yorkville,150.0,21.8,26.7
+MANHATTAN,Washington Heights North,272.0,45.6,47.0
+MANHATTAN,Washington Heights South,613.0,80.4,81.7
+MANHATTAN,Upper East Side-Carnegie Hill,79.0,16.4,17.9
+MANHATTAN,Stuyvesant Town-Cooper Village,20.0,9.4,9.5
+QUEENS,South Jamaica,325.0,102.6,103.3
+QUEENS,Springfield Gardens North,151.0,66.7,70.3
+QUEENS,Springfield Gardens South-Brookville,138.0,82.8,81.8
+QUEENS,Rosedale,126.0,64.3,64.6
+QUEENS,Jamaica Estates-Holliswood,66.0,30.4,33.2
+QUEENS,Hollis,127.0,74.7,76.4
+QUEENS,St. Albans,357.0,85.3,86.5
+QUEENS,Breezy Point-Belle Harbor-Rockaway Park-Broad Channel,74.0,34.9,36.5
+QUEENS,Hammels-Arverne-Edgemere,426.0,144.7,147.6
+QUEENS,Far Rockaway-Bayswater,489.0,121.7,125.3
+QUEENS,Forest Hills,145.0,19.9,21.8
+QUEENS,Rego Park,52.0,22.4,22.1
+QUEENS,Glendale,113.0,43.0,44.9
+QUEENS,Ridgewood,261.0,47.5,47.9
+QUEENS,Middle Village,60.0,19.0,21.1
+QUEENS,Flushing,145.0,23.5,24.1
+QUEENS,College Point,61.0,32.7,34.0
+QUEENS,Corona,238.0,54.2,54.1
+QUEENS,North Corona,134.0,35.4,36.9
+QUEENS,East Elmhurst,102.0,69.3,69.2
+QUEENS,Jackson Heights,257.0,32.5,33.4
+QUEENS,Elmhurst,222.0,34.0,33.6
+QUEENS,Maspeth,53.0,22.3,22.3
+QUEENS,Hunters Point-Sunnyside-West Maspeth,129.0,20.5,22.1
+QUEENS,Cambria Heights,87.0,49.1,52.3
+QUEENS,Queens Village,213.0,49.9,52.5
+QUEENS,Briarwood-Jamaica Hills,112.0,32.5,32.8
+QUEENS,Kew Gardens Hills,79.0,27.9,27.1
+QUEENS,Pomonok-Flushing Heights-Hillcrest,156.0,53.9,58.4
+QUEENS,Fresh Meadows-Utopia,24.0,16.2,17.5
+QUEENS,Oakland Gardens,22.0,8.9,8.9
+QUEENS,Bellerose,41.0,19.2,19.5
+QUEENS,Glen Oaks-Floral Park-New Hyde Park,32.0,15.4,14.5
+QUEENS,Douglas Manor-Douglaston-Little Neck,25.0,12.1,12.6
+QUEENS,Bayside-Bayside Hills,49.0,14.1,15.0
+QUEENS,Ft. Totten-Bay Terrace-Clearview,14.0,7.5,8.6
+QUEENS,Auburndale,18.0,10.7,11.3
+QUEENS,Whitestone,33.0,12.9,12.3
+QUEENS,Elmhurst-Maspeth,50.0,25.9,26.3
+QUEENS,Murray Hill,75.0,17.6,19.2
+QUEENS,East Flushing,53.0,25.1,26.8
+QUEENS,Woodhaven,254.0,56.8,55.4
+QUEENS,Richmond Hill,248.0,52.1,51.8
+QUEENS,South Ozone Park,342.0,54.5,54.3
+QUEENS,Ozone Park,79.0,44.6,45.6
+QUEENS,Lindenwood-Howard Beach,57.0,25.0,27.7
+QUEENS,Kew Gardens,46.0,25.1,27.1
+QUEENS,Jamaica,296.0,72.1,72.9
+QUEENS,Queensboro Hill,34.0,20.7,22.0
+QUEENS,Woodside,89.0,24.9,25.1
+QUEENS,Laurelton,122.0,56.2,61.7
+QUEENS,Queensbridge-Ravenswood-Long Island City,226.0,142.8,145.8
+QUEENS,Astoria,251.0,41.0,43.7
+QUEENS,Old Astoria,173.0,89.1,93.6
+QUEENS,Steinway,112.0,28.5,30.6
+QUEENS,Baisley Park,282.0,97.0,97.0
+STATEN ISLAND,Annadale-Huguenot-Prince's Bay-Eltingville,31.0,13.5,13.6
+STATEN ISLAND,New Springville-Bloomfield-Travis,111.0,32.1,35.4
+STATEN ISLAND,Westerleigh,71.0,36.4,39.1
+STATEN ISLAND,Grymes Hill-Clifton-Fox Hills,140.0,80.9,84.9
+STATEN ISLAND,Charleston-Richmond Valley-Tottenville,33.0,18.8,19.0
+STATEN ISLAND,Mariner's Harbor-Arlington-Port Ivory-Graniteville,298.0,125.5,127.2
+STATEN ISLAND,Grasmere-Arrochar-Ft. Wadsworth,100.0,75.5,84.8
+STATEN ISLAND,West New Brighton-New Brighton-St. George,442.0,180.3,185.2
+STATEN ISLAND,Todt Hill-Emerson Hill-Heartland Village-Lighthouse Hill,90.0,32.9,35.8
+STATEN ISLAND,Oakwood-Oakwood Beach,44.0,27.2,32.6
+STATEN ISLAND,Port Richmond,135.0,90.3,92.5
+STATEN ISLAND,Rossville-Woodrow,29.0,17.6,17.8
+STATEN ISLAND,New Brighton-Silver Lake,91.0,68.1,71.7
+STATEN ISLAND,Old Town-Dongan Hills-South Beach,72.0,34.8,37.1
+STATEN ISLAND,Stapleton-Rosebank,245.0,122.1,127.9
+STATEN ISLAND,New Dorp-Midland Beach,48.0,28.6,29.9
+STATEN ISLAND,Arden Heights,49.0,23.8,26.3
+STATEN ISLAND,Great Kills,82.0,24.6,27.1

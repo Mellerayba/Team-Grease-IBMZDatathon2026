@@ -3,10 +3,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-DATA_RAW = ROOT / "data" / "raw"
-DATA_INTERIM = ROOT / "data" / "interim"
-DATA_PROCESSED = ROOT / "data" / "processed"
 NOTEBOOK_DATA = ROOT / "notebooks" / "data"
+DATA_RAW = NOTEBOOK_DATA / "raw"
+DATA_INTERIM = NOTEBOOK_DATA / "interim"
+DATA_PROCESSED = NOTEBOOK_DATA / "processed"
 
 
 @dataclass(frozen=True)

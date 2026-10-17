@@ -1,4 +1,4 @@
-"""Download all open datasets into data/raw/ (resumable: existing files are skipped).
+"""Download all open datasets into notebooks/data/raw/ (resumable: existing files are skipped).
 
     python scripts/fetch_data.py              # everything
     python scripts/fetch_data.py small        # everything except the large EMS incident pull
@@ -20,7 +20,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-RAW = Path(__file__).resolve().parents[1] / "data" / "raw"
+RAW = Path(__file__).resolve().parents[1] / "notebooks" / "data" / "raw"
 RAW.mkdir(parents=True, exist_ok=True)
 NYC = "https://data.cityofnewyork.us"
 NYS = "https://health.data.ny.gov"
@@ -65,7 +65,9 @@ def socrata_csv(base, rid, out, params=None, page=50_000):
         print(f"  {out.name}: {offset:,} rows", flush=True)
         if len(df) < page:
             break
-    pd.concat(frames).to_csv(out, index=False)
+    tmp = out.with_name(out.name + ".part")       # write then rename, so an interrupted run never leaves a truncated file
+    pd.concat(frames).to_csv(tmp, index=False, compression="gzip" if out.name.endswith(".gz") else None)
+    tmp.replace(out)
     print(f"wrote {out.name}")
 
 
