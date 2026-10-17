@@ -4,7 +4,6 @@ SSF2026
 ## The problem
 Medical emergencies sometimes require a response time faster than is possible with traditional ambulance services; particularly in New York City, where heavy traffic stopping large ambulances is common
 
-### Our solution
 ## Why this problem matters
 
 **Response times are getting worse.**
