@@ -15,5 +15,5 @@
 - Must be built within the hack window; optional flowchart + prototype
 
 # Open decisions
-- Unit type: ambulances (recommended, supports response-time metric) vs mobile clinics (README currently says clinics)
+- Unit type: **decided** - ambulances stay as the transporting fleet; the lever we study is a second fleet of lightweight electric first-response units (see `docs/decisions.md` D13 and section 7)
 - Zone unit (ZIP / precinct / community district) - check dataset columns

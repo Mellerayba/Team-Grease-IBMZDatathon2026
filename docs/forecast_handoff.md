@@ -32,6 +32,8 @@ Run the same replayed days under each, same fleet, same travel times:
 
 Reading the result: if Forecast is close to Scheduled, forecast accuracy barely matters for dispatch and we should say so. If Forecast is close to Oracle, a better forecaster could not add much either. A large Forecast-to-Oracle gap means improving the model is worth the time.
 
+**Unit types.** The policy table above is written for generic units. Project Dispatch's headline unit is a lightweight first-response unit (`docs/decisions.md` D13 and section 7); the same demand columns (`pred_*`, `hist_all_*`, `actual_*`) feed it, and only the replay changes (speed, no hospital leg, stays until the ambulance arrives).
+
 ## 3. Using it
 ```python
 import pandas as pd

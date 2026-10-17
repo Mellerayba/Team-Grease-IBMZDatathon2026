@@ -13,7 +13,7 @@ State below is as of **2026-10-17, afternoon**.
 
 | ID | Decision | Status | Why |
 |---|---|---|---|
-| D1 | The units we model are **ambulances** (not mobile clinics). Mobile clinics can be mentioned later as a generalisation | Decided | Gives a measurable response-time metric and fits the EMS data; the guidebook rewards a working demo |
+| D1 | ~~The units we model are **ambulances** (not mobile clinics)~~ **Revised by D13 (2026-10-17):** ambulances stay as the transporting fleet; the lever we study is a second fleet of lightweight first-response units | Revised | Original reason still holds for the ambulance layer: gives a measurable response-time metric and fits the EMS data |
 | D2 | **EMS data is fetched in `HarryRowlands.ipynb`** (API -> `notebooks/ems_raw/`). All other data is fetched and cleaned in `DarraghC.ipynb` and linked onto the EMS table in the Harry notebook | Decided | One owner per data source; keeps the model notebook readable |
 | D3 | ~~**Do not change the model yet.**~~ **Superseded by D10 (2026-10-17).** Link all the data in first (the table `full`), then decide features from there | Decided | Avoid changing the model and the data at the same time; we need a clean before / after |
 | D4 | ~~Other data is joined into a separate table `full`, never into `panel`~~ **Superseded (2026-10-17):** `full` is now the modelling table, and the model uses an explicit feature list (M2), so nothing is picked up by accident | Superseded | The model builds its feature list from every column of `panel`, so merging into it would silently change the model (and a text column would break LightGBM) |
@@ -25,6 +25,8 @@ State below is as of **2026-10-17, afternoon**.
 | D10 | **D3 (model frozen) ends** once the EMS download is complete and the unchanged model has been run once on real data and its results recorded here | Implemented, awaiting full-data run | We need an honest before / after, but the model has to change to produce D8's output |
 | D11 | **Be honest about the IBM Z accelerator.** It does not fix our memory problem or speed up training. Right-size the VM first (event code, ask the SMEs), measure with `scripts/vm_check.py`, and only claim accelerator use if the VM shows the `nnpa` CPU flag and we actually run inference through it | Proposed | See section 6. Judges score *use of platform capabilities*, with screenshots as evidence, so the evidence has to be real |
 | D12 | **Compare four policies in the simulator: static, scheduled (historical mean), forecast (our model) and oracle (the real future).** Report how close Forecast gets to Oracle and how far it is above Scheduled | Proposed | Tells us whether forecast accuracy matters for dispatch at all, and where to spend the remaining time. Hand-off format: `docs/forecast_handoff.md` |
+| D13 | **Reframe the product: Project Dispatch adds a fleet of lightweight electric first-response units (e.g. e-bikes) carrying enough equipment to stabilise a critical patient until an ambulance arrives.** Ambulances still transport. The headline question for the city is "how many units should NYC buy, and where should they stand?", answered by replaying the same real incidents at many fleet sizes | Proposed | A cheap, fast layer is something a city can actually buy more of; the fleet-size curve turns our replay into a purchasing decision; it fits "Real-time AI for critical decisions". Detail, assumptions and what must change in the code: section 7 |
+| D14 | **Headline metrics:** time to the first responder on scene (light unit or ambulance, whichever is first), share of critical calls reached within 4 and 8 minutes, and the borough gaps, all by fleet size. Any "lives saved" figure is an assumption-driven illustration, not a result | Proposed | Our data has no outcomes, so survival can only be inferred through a published rule of thumb (section 7) |
 
 ---
 
@@ -174,7 +176,59 @@ Why this matters: the notebook kernel died while building the panel for the late
 
 ---
 
-## 7. Changelog
+## 7. Product framing: lightweight first-response units (D13, D14)
+
+**Concept.** A fleet of cheap, fast, lightweight electric units (e-bikes or similar), each carrying a stabilisation kit (contents to be specified with clinicians). They are positioned across the city by our forecast and risk model, sent to critical calls, and stay with the patient until an ambulance arrives. They do not transport anyone.
+
+**Why it is a better lever than "more ambulances".** An ambulance costs far more, needs a crew that is in short supply (about 10 are lost a day to staffing shortages, per the sources in the README) and is slowed by traffic. A light unit is cheap enough to buy hundreds, which makes "how many?" a real decision, and the curve of benefit against fleet size is exactly what our replay can produce.
+
+**Status.** Concept and framing only. The replay today models one generic fleet (ambulance-like units: they drive to the call, spend time on scene, drive to a hospital and return). The light-unit model below is **not built yet**.
+
+**What stays the same:** the demand forecaster and its hand-off table; the risk index; the positioning and dispatch engine (expected-coverage objective, assignment of units to staging spots, minimum-gain threshold, per-borough floor, staleness failsafe); the replay structure; and the four-policy test with an oracle (D12).
+
+**What must change in the model**
+
+| Item | Today (ambulance-like unit) | Light unit (assumptions to confirm) |
+|---|---|---|
+| Speed and network | straight line x 1.35 at 30 km/h (placeholder), driving network planned | cycling network (OSMnx `network_type="bike"`) with an assumed average speed, to be checked against published figures |
+| After arrival | 15 min on scene, then hospital leg and return | stays on scene until the ambulance arrives (or a time cap), then returns to a staging spot; **no hospital leg** |
+| Calls attended | all calls | critical calls first (severity 1-3); whether it also attends others is open |
+| Coverage target | 8 min critical, 15 min other | shorter target for critical (for example 4-5 min), since the aim is to beat the ambulance |
+| Dispatch | nearest idle unit | send the nearest light unit **and** the nearest ambulance to the same call; the value of the light unit is the minutes between the two arrivals |
+| Constraints | none | battery range and charging, bad weather, night, rider fatigue (all placeholders until researched) |
+| Cost | none | a unit cost, so results can be shown per unit and per dollar |
+
+**New outputs**
+- Fleet-size curve: share of critical calls with a responder within 4 and 8 minutes, and the 90th-percentile time to first responder, for 0, 50, 100, 200, 300 ... units, with the ambulance fleet held fixed.
+- Where each extra batch of units goes (by borough) and which boroughs gain most; the equity gap.
+- Minutes of unaided waiting avoided = ambulance arrival time minus first-responder arrival time, summed over critical calls.
+- Cost-effectiveness: extra critical calls reached quickly per unit bought (placeholder prices).
+
+**Turning minutes into "lives saved" (D14, handle with care).** The README cites the American Heart Association rule of thumb that survival falls roughly 7-10% for every minute without CPR or defibrillation. That applies to *cardiac arrest*. Our slim EMS download has no call type, so we cannot yet say what share of critical calls are arrests; the full API has `initial_call_type`, which we dropped and could re-fetch. Until then, any survival figure must be shown as an **illustration with its assumption stated** ("if X% of critical calls are arrests, each minute saved is worth about 7-10% survival for those"), never as a measured result.
+
+**Open questions (need a decision or research)**
+- Clinical scope: what the kit can safely do, who rides the unit and their training.
+- Regulation, insurance and liability for non-ambulance responders.
+- Operating limits: range, charging, rain, snow, heat, night.
+- Evidence: published results exist from bicycle first-responder schemes in other cities; we have not reviewed them and should cite one or two.
+- Whether light units also help non-critical calls, or only ever critical ones.
+
+**Replay results so far (ambulance-only positioning, the baseline the new layer builds on).** Modelled, two real 2022 days, 330 generic units, placeholder travel times; averages of both days.
+
+| Policy | Critical calls reached in 8 min | 90th-percentile response (min) |
+|---|---|---|
+| Static layout | 76.4% | 17.1 |
+| Scheduled (historical demand) | 84.4% | 12.7 |
+| Forecast (our model) | 84.9% | 12.5 |
+| Oracle (perfect foresight) | 86.2% | 11.6 |
+
+Most of the gain comes from positioning units by expected demand at all; our forecast adds only a little over the historical average. The gain held at 300 and 370 units. **Equity flag:** the dynamic policies did worse than static in Staten Island on both days (97.7% to 89.5% on one day, 58.8% to 57.5% on the other); this needs a fix or an explicit note.
+
+**Routing review (the street-network work).** `notebooks/Mapping.ipynb` downloads the Manhattan drivable network with OSMnx and computes one route (Times Square to Washington Square Park: 5.2 minutes free-flow). That is a proof of concept, not yet the travel-time matrix the policy needs: it covers Manhattan only, one pair, and nothing calls it from the policy or replay. What is still needed: all five boroughs, a zone-to-zone (or ZIP-to-ZIP) matrix passed to the policy as `tt_base` (the policy already accepts one; `run_replay` does not yet pass it through), a siren-speed assumption for ambulances, a bike network and speed for light units, and the traffic multiplier on top. **Consequence for results:** for that one pair our placeholder says 8.6 minutes against 5.2 on the street network, so the placeholder is probably too slow and the fleet calibration (330 units) must be redone once real travel times go in.
+
+---
+
+## 8. Changelog
 
 | Date | Change |
 |---|---|
@@ -187,3 +241,4 @@ Why this matters: the notebook kernel died while building the panel for the late
 | 2026-10-17 | VM measured: 8.4 GB RAM (5.6 GB free), 3 CPUs, IBM z17-generation LinuxONE with the `nnpa` AI-accelerator flag exposed; two years of data build the panel in 6 s and 1.6 GB. The kernel died because the notebook still defaulted to all seven years, so the repo default is now 2021-2022 (train Jan-Sep 2021, validate Q4 2021, test 2022). The full 2016-2022 history needs a bigger machine, so F11 / F10 experiments over many years are limited on the VM |
 | 2026-10-17 | First real run recorded (section 3). Added 7-day / 28-day level features (F16), the zone-level hand-off export and `docs/forecast_handoff.md` (M11), the four-policy comparison with an oracle (D12), and F15-F17 |
 | 2026-10-17 | Run 2 (with level features) recorded, including calibration, feature importance (roll_7d 71%, weather about 1% in total) and the risk snapshot. Corrected an earlier claim: the surge baseline is worse on MAE but not on deviance |
+| 2026-10-17 | Reframed the product (D13, D14): lightweight first-response units as a second fleet, headline question = how many units to buy. Added section 7 (assumptions, required model changes, replay results, routing review). D1 revised |

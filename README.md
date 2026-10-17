@@ -2,7 +2,7 @@
 SSF2026
 
 ## The problem
-Medical emergencies sometimes require a response time faster than is possible with traditional ambulance services; particularly in New York City, where heavy traffic stopping large ambulances is common
+In New York City the first minutes of a critical emergency decide whether someone survives, but ambulance response times are at record highs. Ambulances are large, expensive, staffed by a shrinking workforce and stuck in the same traffic as everyone else, so the city cannot simply add more of them quickly.
 
 ## Why this problem matters
 
@@ -27,14 +27,25 @@ Medical emergencies sometimes require a response time faster than is possible wi
 - NYC's public EMS dispatch data aggregates incident locations to protect patient privacy, so our analysis works at area level, not street level ([data.gov](https://catalog.data.gov/dataset/ems-incident-dispatch-data)).
 
 ## Proposed Solution
-Instead of waiting for an emergency service call, we will use AI to predict where health crises may occur, and proactively route mobile health clinics before the crisis happens.
+**Project Dispatch** adds a second, much cheaper layer to the emergency response: a fleet of **lightweight electric first-response units** (for example e-bikes) that can move through traffic and carry enough equipment to stabilise a critically ill person until an ambulance arrives. Ambulances still transport patients; the light units buy the first minutes.
+
+AI decides where those units wait and which one goes:
+1. **Forecast** the expected number of critical and other calls in each zone for the next 30 minutes to 3 hours, from historical EMS data, weather and the calendar.
+2. **Position** idle units so that as much expected critical demand as possible is within a few minutes' ride, weighting vulnerable neighbourhoods more and keeping a minimum presence in every borough.
+3. **Dispatch** the unit that can arrive fastest, with a human dispatcher in the loop and a plain-language briefing of each recommended move.
+4. **Replay** real 2022 incidents under each policy so every policy faces identical calls.
+
+**The question we answer for the city: how many units should NYC buy, and where should they stand?** Because the same incidents can be replayed with 0, 50, 100, 300 or more units, we can show how the share of critical calls reached quickly rises with fleet size, where the returns start to diminish, and which boroughs gain most.
+
+**Status (honest).** Built and tested: the demand forecaster, the risk index, the positioning and dispatch policy, and a minute-by-minute replay of real 2022 incidents, which today models a single generic fleet. Being added: the light-unit model (speed, no hospital transport, stays until the ambulance arrives), street-network travel times and the fleet-size sweep. All response times are *modelled*, not measured, and rest on stated assumptions (see `docs/decisions.md`).
 
 ## Target Audience
-1. **Emergency medical dispatchers and operations leaders:** Use the recommendations to decide which unit to send and where to position idle units. 
-2. **Public health and policy planners:** Use the fairness analysis to find neighbourhoods with the slowest response and target staffing and funding. 
-3. **Hospital and community health managers:** Plan outreach and support around predicted demand spikes. 
-4. **Residents of underserved areas:** The end beneficiaries, who gain faster care and fairer allocation of resources. 
-5. **Researchers and civic technologists:** Reuse the open-source approach with other cities' open data.
+1. **City emergency-management and budget decision-makers:** Use the fleet-size curve to decide how many units to buy and where to station them.
+2. **Emergency medical dispatchers and operations leaders:** Use the recommendations to decide which unit to send and where to position idle units. 
+3. **Public health and policy planners:** Use the fairness analysis to find neighbourhoods with the slowest response and target staffing and funding. 
+4. **Hospital and community health managers:** Plan outreach and support around predicted demand spikes. 
+5. **Residents of underserved areas:** The end beneficiaries, who gain faster care and fairer allocation of resources. 
+6. **Researchers and civic technologists:** Reuse the open-source approach with other cities' open data.
 
 ## Datasets
 We will use open, publicly available datasets: 
