@@ -41,8 +41,8 @@ We will use open, publicly available datasets:
 - [ ] **Public EMS dispatch data** (e.g. NYC Open Data EMS Incident Dispatch Data): Incident time, severity level, and dispatch and travel times, aggregated by area to protect privacy. 
 - [ ] **Public response-time reports** (e.g. FDNY monthly response times): Benchmarks to validate our findings. 
 - [ ] **Hospital and station locations** from public health and city sources. 
-- [ ] **Census data:** Population, income and vehicle access by area, to weight demand and audit fairness. 
-- [ ] **Weather data** (e.g. NOAA): To improve demand forecasts. 
+- [x] **Census data:** Population, income and vehicle access by area, to weight demand and audit fairness. 
+- [x] **Weather data** (e.g. NOAA): To improve demand forecasts. 
 - [ ] **Open road network data** (OpenStreetMap): For travel-time estimates. 
 - [ ] **Emergency call text:** Public or synthetic, clearly labelled, with no personal data. 
 
