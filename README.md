@@ -54,3 +54,5 @@ All data is open, properly licensed and contains no personal information.
 This project is built entirely on open-source libraries and frameworks running on IBM LinuxONE:
 
 | Component | Open-Source Library | License | Usage in Architecture |
+| :--- | :--- | :--- | :--- |
+| **Data Processing** | [pandas](https://github.com/pandas-dev/pandas) | BSD 3-Clause | Cleaning, aggregation, and spatial crosswalk operations |
