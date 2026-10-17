@@ -11,4 +11,4 @@ def aggregate_to_zones(frame: pd.DataFrame, zip_to_zone: pd.Series, value_cols: 
     keep = pd.notna(zone)
     out = frame.loc[keep, ["bucket"] + value_cols].copy()
     out["zone"] = zone[keep]
-    return out.groupby(["zone", "bucket"], as_index=False)[value_cols].sum()
+    return out.groupby(["zone", "bucket"], as_index=False)[value_cols].sum(min_count=1)       # all-missing stays missing (incomplete future windows)

@@ -33,3 +33,9 @@ def risk_index(expected_critical: pd.Series, expected_other: pd.Series, vuln: pd
     need = cfg.w_critical * expected_critical + cfg.w_other * expected_other
     raw = need * (1 + cfg.alpha * vuln.reindex(need.index).fillna(0.5))
     return raw.rank(pct=True) * 100
+
+
+def risk_index_table(df: pd.DataFrame, critical_col: str, other_col: str, vuln: pd.Series, cfg: RiskConfig = RiskConfig()) -> pd.Series:
+    """The same index for every row of a (zone, bucket) table: each half-hour ranks the zones against each other. `vuln` is indexed by zone."""
+    raw = (cfg.w_critical * df[critical_col] + cfg.w_other * df[other_col]) * (1 + cfg.alpha * df["zone"].map(vuln).fillna(0.5))
+    return (raw.groupby(df["bucket"]).rank(pct=True) * 100).astype("float32")

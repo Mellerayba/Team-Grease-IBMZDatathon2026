@@ -17,14 +17,15 @@ ACUITY = ["critical", "other"]
 ACUITY_COL = {"critical": "y_critical", "other": "y_other", "all": "y"}
 CRITICAL_MAX_SEVERITY = 3                                # ASSUMPTION (decision F9): severity code 1 = most critical; 1-3 counts as critical
 LAGS = [1, 2, 3, 6, 48, 336]                             # 30 min, 1 h, 1.5 h, 3 h, 1 day, 1 week
-ROLLS = {"roll_2h": 4, "roll_6h": 12, "roll_24h": 48}    # sums over the last 4 / 12 / 48 buckets, INCLUDING the current one
-HISTORY_BUCKETS = max(LAGS) + 1                          # history needed to build features for a single time
+ROLLS = {"roll_2h": 4, "roll_6h": 12, "roll_24h": 48,   # sums over the last 4 / 12 / 48 buckets, INCLUDING the current one
+         "roll_7d": 336, "roll_28d": 1344}               # long-run level (7 and 28 days): lets the model track year-on-year drift (decision F16)
+HISTORY_BUCKETS = max(max(LAGS), max(ROLLS.values())) + 1   # history needed to build features for a single time
 CSV_COLUMNS = ["incident_datetime", "zipcode", "initial_severity_level_code"]
 
 FEATURE_GROUPS = {
     "id": ["zipcode"],
     "history": ["y", "y_critical", "lag_1", "lag_2", "lag_3", "lag_6", "lag_48", "lag_336",
-                "roll_2h", "roll_6h", "roll_24h", "crit_roll_2h"],
+                "roll_2h", "roll_6h", "roll_24h", "roll_7d", "roll_28d", "crit_roll_2h"],
     "time": ["hour", "dow", "month", "is_weekend"],
     "weather": ["temp_c", "feels_like_c", "precip_mm", "rain_3h_mm", "wind_kmh"],                       # decision F5 starting set
     "weather_extra": ["humidity_pct", "is_raining", "rain_24h_mm", "cloud_pct", "temp_max_24h_c",

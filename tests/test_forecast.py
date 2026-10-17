@@ -6,7 +6,7 @@ from grease.forecast.zones import aggregate_to_zones
 from grease.risk import RiskConfig, risk_index, vulnerability
 
 START = pd.Timestamp("2022-03-01")
-N = 420        # buckets, enough for the 336-bucket (one week) lag
+N = 1500       # buckets (31 days), enough for the 1344-bucket (28 day) rolling sum
 
 
 def _incidents():
@@ -58,7 +58,7 @@ def test_history_features_only_use_the_past_and_include_current_bucket():
 
 def test_features_at_matches_training_features():
     p = _panel()
-    now = p.bucket.iloc[380]
+    now = p.bucket.iloc[1400]
     live = F.features_at(p[["zipcode", "bucket", "y", "y_critical"]], now).set_index("zipcode")
     train = p[p.bucket == now].set_index("zipcode")
     cols = F.FEATURE_GROUPS["history"] + F.FEATURE_GROUPS["time"]
@@ -127,13 +127,13 @@ def test_saved_model_predicts_from_live_features(tmp_path):
     p = _panel()
     feats = F.select_features(p.columns, ["id", "history", "time"])
     ok = F.complete_window_mask(p)
-    split, end = p.bucket.iloc[300], p.bucket.iloc[380]
+    split, end = p.bucket.iloc[1100], p.bucket.iloc[1300]
     train_rows = np.flatnonzero(((p.bucket < split) & ok).to_numpy())
     valid_rows = np.flatnonzero(((p.bucket >= split) & (p.bucket < end) & ok).to_numpy())
     m = ForecastModel(feats, {"n_estimators": 15, "min_child_samples": 5, "num_leaves": 7}).fit(p, train_rows, valid_rows, log=lambda *_: None)
     m.save(tmp_path / "m")
     m2 = ForecastModel.load(tmp_path / "m")
-    now = p.bucket.iloc[380]
+    now = p.bucket.iloc[1400]
     live = F.features_at(p[["zipcode", "bucket", "y", "y_critical"]], now)
     from_live = m2.predict(live).set_index(live["zipcode"].astype(str))
     rows = np.flatnonzero((p.bucket == now).to_numpy())
@@ -204,3 +204,27 @@ def test_link_context_puts_the_right_values_in_the_right_rows():
     assert full.is_holiday.dtype == "int8" and full.is_holiday.iloc[i] == (4 + 5) % 2
     # the panel's own columns are untouched and nothing was reordered
     assert (full.y.to_numpy() == p.y.to_numpy()).all()
+
+
+def test_risk_index_table_ranks_within_each_half_hour():
+    from grease.risk import risk_index_table
+    df = pd.DataFrame({"zone": ["A", "B", "A", "B"], "bucket": [START, START, START + pd.Timedelta(minutes=30), START + pd.Timedelta(minutes=30)],
+                       "c": [1.0, 0.0, 0.0, 2.0], "o": [0.0, 0.0, 0.0, 0.0]})
+    idx = risk_index_table(df, "c", "o", pd.Series({"A": 0.5, "B": 0.5}))
+    assert list(idx) == [100.0, 50.0, 50.0, 100.0]                                  # each half-hour ranks its own zones
+
+
+def test_zone_forecast_table_columns_sums_and_missing_windows():
+    from grease.forecast.export import zone_forecast_table
+    keys = pd.DataFrame({"zipcode": pd.Categorical(["10001", "10002", "10003", "10001"]), "bucket": [START] * 3 + [START + pd.Timedelta(minutes=30)]})
+    hs = list(F.HORIZONS)
+    pred = pd.DataFrame({f"pred_{a}_{h}": [1.0, 2.0, 4.0, 0.5] for a in F.ACUITY for h in hs})
+    actual = {(a, h): np.array([1.0, 1.0, 1.0, np.nan]) for a in F.ACUITY for h in hs}      # the last row's window runs past the end of the data
+    baseline = {h: np.array([3.0, 3.0, 3.0, 3.0]) for h in hs}
+    ctx = pd.DataFrame({"pct_poverty": [0.1, 0.9], "pct_no_vehicle": [0.1, 0.9], "asthma_rate_per_10k": [1, 9]}, index=pd.Index(["A", "B"], name="zone"))
+    t = zone_forecast_table(keys, pred, actual, baseline, pd.Series({"10001": "A", "10002": "A", "10003": "B"}), ctx).set_index(["zone", "bucket"])
+    assert t.loc[("A", START), "pred_critical_1h"] == 3.0 and t.loc[("B", START), "pred_other_3h"] == 4.0   # ZIPs summed into zones
+    assert t.loc[("A", START), "hist_all_1h"] == 6.0 and t.loc[("A", START), "actual_critical_1h"] == 2.0
+    assert np.isnan(t.loc[("A", START + pd.Timedelta(minutes=30)), "actual_critical_1h"])                     # missing stays missing, not 0
+    assert {"risk_index_1h", "risk_index_3h"} <= set(t.columns) and t.risk_index_1h.between(0, 100).all()
+    assert t.loc[("B", START), "risk_index_1h"] == 100.0                                                       # more demand and more vulnerable

@@ -24,6 +24,7 @@ State below is as of **2026-10-17, afternoon**.
 | D9 | **The risk index is a derived layer, not a model.** Risk = need-weighted expected demand (critical calls count more, e.g. 3:1, a stated assumption) x a vulnerability factor (poverty, no-vehicle households, asthma rate), shown as a 0-100 percentile map. Later it can add the coverage gap (expected response time minus the 8-minute target) once the simulator exists | Implemented, awaiting full-data run | Keeps the forecast testable and the policy weights explicit and adjustable without retraining. Vulnerability data is constant per zone, so it belongs in the weights (and the optimizer's equity floor), not in the forecast |
 | D10 | **D3 (model frozen) ends** once the EMS download is complete and the unchanged model has been run once on real data and its results recorded here | Implemented, awaiting full-data run | We need an honest before / after, but the model has to change to produce D8's output |
 | D11 | **Be honest about the IBM Z accelerator.** It does not fix our memory problem or speed up training. Right-size the VM first (event code, ask the SMEs), measure with `scripts/vm_check.py`, and only claim accelerator use if the VM shows the `nnpa` CPU flag and we actually run inference through it | Proposed | See section 6. Judges score *use of platform capabilities*, with screenshots as evidence, so the evidence has to be real |
+| D12 | **Compare four policies in the simulator: static, scheduled (historical mean), forecast (our model) and oracle (the real future).** Report how close Forecast gets to Oracle and how far it is above Scheduled | Proposed | Tells us whether forecast accuracy matters for dispatch at all, and where to spend the remaining time. Hand-off format: `docs/forecast_handoff.md` |
 
 ---
 
@@ -59,7 +60,21 @@ About 4 GB in memory for two years, so roughly 14 GB for 2016-2022.
 **Baselines (same rows, same targets):** historical mean for that ZIP x weekday x time; that mean x a citywide recent-surge multiplier; the same window one week earlier.
 **Reported:** MAE, Poisson deviance and bias, overall and on heat days, heavy-rain days, the 20 busiest ZIPs and each borough; calibration by prediction decile; feature importance.
 
-**Status: built and tested, not yet run on the real split.** Only a plumbing smoke test has run (2017 data only; trained on Jan-Mar and tested on Jun-Dec, so the numbers mean nothing). It showed the model about 0-3% better than the historical mean on MAE, that the surge multiplier did not help, and that weather had very low importance, but with 3 months of training and no 2020-2022 data none of that is a finding. The real run needs the complete EMS download.
+**Status: first real run done on the VM (2026-10-17).** Trained on Jan-Sep 2021, validated on Oct-Dec 2021, tested on all of 2022 (4.13M ZIP-half-hours per horizon, 29 features). Results (`forecast_scores.csv`):
+
+| Horizon | Model MAE | Best baseline MAE (historical mean) | MAE gain | Deviance model vs baseline |
+|---|---|---|---|---|
+| 30 min | 0.390 | 0.392 | 0.4% | 0.680 vs 0.728 |
+| 1 h | 0.568 | 0.573 | 0.9% | 0.808 vs 0.855 |
+| 2 h | 0.819 | 0.830 | 1.2% | 0.895 vs 0.945 |
+| 3 h | 1.019 | 1.033 | 1.3% | 0.932 vs 0.986 |
+
+Findings:
+- The model beats every baseline on both metrics at every horizon, but by little: 0.4-1.3% on MAE, 5-7% on deviance. A ZIP gets about 0.38 calls per half-hour, so most of the remaining error is random noise, and the historical profile for that ZIP, weekday and time is already a strong predictor.
+- **The model under-predicts by about 6% in every slice and horizon.** 2022 had about 6.2% more incidents than 2021 (1,583,531 vs 1,491,454, API totals) and the model had no feature for the long-run level. Most likely a level shift, not noise.
+- The "scale by recent citywide activity" baseline (`hist_x_surge`) was **worse** than the plain historical mean at every horizon, and the same-window-last-week baseline was much worse.
+- Gains are largest on the 20 busiest ZIPs (1.1-1.7%) and on heat days at longer horizons (+1.5% at 2 h, +2.0% at 3 h), and about zero or slightly negative for Queens and Staten Island at 30 minutes and for heat days at 30 minutes. Gains concentrate in the high-demand boroughs.
+- Not yet checked: calibration by decile, feature importance, and accuracy at the level the optimizer uses (zone totals over 1-3 h, and whether the zones flagged as busiest really are).
 
 ### Previous model (original, replaced)
 Predicted incidents in the *same* bucket from lags (one-step ahead only), all columns of `panel` as features, 60 / 15 / 25 percent split by time fraction, and a baseline that predicted zero for some cells. Its saved results came from a 33-day 2005 sample and should not be quoted. Limitations L1-L7 below are what the rewrite fixes.
@@ -107,6 +122,9 @@ Plan: change one group at a time and compare against the same baseline, so each 
 | F12 | **Baseline** | zipcode x weekday x hour mean (now); the same x a recent-surge multiplier; "same bucket last week" | Report all three; the surge-multiplier version is the one in the plan | Proposed | Fixes L2; the model must beat the best of them to claim anything |
 | F13 | **Evaluation** | MAE and deviance only; add decision-relevant metrics | Add error on the busiest zones, on heat days, and per borough (equity gap) | Proposed | Matches how the optimizer uses the forecast |
 | F14 | **Whole-day weather flags** | - | Never as features (D5) | Decided | Leakage |
+| F15 | **Surge baseline** | keep; drop; rework as a per-ZIP multiplier | Report it as "tried, did not help" (worse than the plain historical mean at every horizon) and stop using it as a comparison target | Proposed | Result above |
+| F16 | **Long-run level features** (7-day and 28-day rolling counts per ZIP) | none; add | **Added** (`roll_7d`, `roll_28d`) to track year-on-year drift | Implemented, effect small | Smoke test (2017, train Jan-Mar, test Jun-Dec): bias moved from 0.970 to 0.981 at 3 h and from 0.987 to 1.002 at 1 h, error unchanged. Tree models cannot extrapolate beyond the levels seen in training, so this is unlikely to fully remove a 6% year-on-year gap. Re-test on the VM (train 2021, test 2022) |
+| F17 | **Rate offset** | none; model the ratio to the recent level (LightGBM `init_score` = log of the 28-day average rate, prediction = exp(raw score + offset)) | The principled fix if F16 is not enough: the model learns multiplicative deviations from the current level, so a drifting level cannot cap the prediction | Open | Needs F16's VM result first |
 
 ---
 
@@ -126,6 +144,8 @@ What stays: LightGBM with the Poisson objective, the ZIP x 30-minute panel, the 
 | M8 | **Make it callable:** move the logic into `src/grease/forecast/` (features at a given time from recent history, `fit`, `predict(now) -> expected demand per zone`), and save the trained models. The simulator calls it every 15-30 simulated minutes | New code | Must | Done: `ForecastModel.save/load` and `features_at`, tested; simulator integration pending |
 | M9 | **Risk layer** (D9) in `src/grease/risk.py` with the weights in `config.py` as stated assumptions, and a unit test | New code | Should | Done (weights are stated assumptions) |
 | M10 | Replace the `eval_X` / `eval_y` fit arguments with the standard `eval_set=[(X, y)]` so it also runs on the VM's LightGBM; remove the dead and duplicated cells | Model cell | Must | Done: uses `eval_X` / `eval_y` when LightGBM supports them, falls back to `eval_set` (deprecated in 4.7 but all that older versions have) |
+| M11 | **Hand-off export**: zone x half-hour table with forecast, scheduled and oracle demand and the risk index; format in `docs/forecast_handoff.md` | New cell in the notebook, `src/grease/forecast/export.py` | Must | Done (tested; written when the notebook runs) |
+| M12 | **Long-run level features** (F16) | `features.py` | Should | Done; effect small, see F16 |
 
 All ten are implemented. We skipped the intermediate "unchanged model on real data" baseline run that D10 suggested, because the original model cannot produce D8's output; the honest before / after is now the new model against the three baselines.
 
@@ -159,3 +179,4 @@ Why this matters: the notebook kernel died while building the panel for the late
 | 2026-10-17 | Memory rewrite after the VM kernel died (out of memory at the linking cell): EMS streamed one year at a time, only the needed columns are linked (built from small lookups), targets computed one at a time, 8 models share one float32 dataset. Measured peak for one year of data fell from 4.1 GB to 1.9 GB; 15 tests pass |
 | 2026-10-17 | Added D11 and section 6 (platform notes) and `scripts/vm_check.py` after the VM kernel died again at the panel cell |
 | 2026-10-17 | VM measured: 8.4 GB RAM (5.6 GB free), 3 CPUs, IBM z17-generation LinuxONE with the `nnpa` AI-accelerator flag exposed; two years of data build the panel in 6 s and 1.6 GB. The kernel died because the notebook still defaulted to all seven years, so the repo default is now 2021-2022 (train Jan-Sep 2021, validate Q4 2021, test 2022). The full 2016-2022 history needs a bigger machine, so F11 / F10 experiments over many years are limited on the VM |
+| 2026-10-17 | First real run recorded (section 3). Added 7-day / 28-day level features (F16), the zone-level hand-off export and `docs/forecast_handoff.md` (M11), the four-policy comparison with an oracle (D12), and F15-F17 |
