@@ -42,4 +42,5 @@ def calibration_table(y, mu, bins: int = 10) -> pd.DataFrame:
 
 
 def busiest_zipcodes(train: pd.DataFrame, n: int = 20, col: str = "y") -> set:
+    """`train` needs columns zipcode and `col`."""
     return set(train.groupby("zipcode", observed=True)[col].sum().nlargest(n).index)

@@ -33,7 +33,7 @@ Run `DarraghC.ipynb` first (about 10 seconds once the raw files are cached), the
 - `eval_is_heat_day`, `eval_is_heavy_rain_day`: **slice results on heat days only, never model inputs** (they use the whole day's weather)
 
 `full` is the modelling table, but the model uses an **explicit feature list** (`FEATURE_GROUPS`, `src/grease/forecast/features.py`), so adding columns here never changes the model by accident. See `docs/decisions.md`.
-Memory: about 0.7 GB per year of data in `full`, plus copies for the train / validation / test slices, so all of 2016-2022 needs roughly 10 GB; set `EMS_YEARS` in the load cell to use fewer years.
+Memory: the notebook streams the EMS files one year at a time, attaches only the columns the chosen features need, and trains all 8 models from one shared 32-bit dataset. **Measured peak for one year of data: 1.9 GB (it was 4.1 GB before this was optimised).** Extrapolated, not yet measured: about 3.5 GB for 2 years, 6 GB for 4 years and 8-11 GB for all of 2016-2022. Set `EMS_YEARS` in the settings cell (and the matching `TRAIN_START` / `VAL_START` / `TEST_START`) to use fewer years. A kernel that dies mid-run is almost certainly out of memory.
 For a model that predicts `h` buckets ahead, weather must be shifted back `h` buckets so it only uses what is known at forecast time (`src/grease/data/features.py` does this).
 
 ## Decisions and assumptions

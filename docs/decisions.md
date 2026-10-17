@@ -140,3 +140,4 @@ All ten are implemented. We skipped the intermediate "unchanged model on real da
 | 2026-10-17 | Census fetched and joined into the zone context (affects F7: population, income, vehicle access and poverty are now candidate features) |
 | 2026-10-17 | Added D8-D10 (model output = expected demand; risk index is a derived layer; D3 ends after the baseline run), revised F8, and listed the model changes needed (section 5) |
 | 2026-10-17 | Model rewritten per D8-D10 and M1-M10 (code in `src/grease/forecast/`, notebook updated, 10 tests pass). Smoke-tested on 2017 only; real run pending the complete EMS download |
+| 2026-10-17 | Memory rewrite after the VM kernel died (out of memory at the linking cell): EMS streamed one year at a time, only the needed columns are linked (built from small lookups), targets computed one at a time, 8 models share one float32 dataset. Measured peak for one year of data fell from 4.1 GB to 1.9 GB; 15 tests pass |

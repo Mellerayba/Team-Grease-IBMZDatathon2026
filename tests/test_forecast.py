@@ -81,7 +81,7 @@ def test_select_features_never_leaks():
 def test_baseline_uses_training_rows_only():
     p = _panel()
     train, test = p[p.bucket < START + pd.Timedelta(days=7)], p[p.bucket >= START + pd.Timedelta(days=7)]
-    pred = baseline.historical_mean(train, test, "t_other_30m")
+    pred = baseline.historical_mean(train, train.t_other_30m.to_numpy(), test)
     a_train = train[train.zipcode == "10001"]
     row = test[test.zipcode == "10001"].iloc[1]                                # a test row whose weekday x time cell exists in training
     expect = a_train[(a_train.dow == row.dow) & (a_train.hour == row.hour)].t_other_30m.mean()
@@ -89,10 +89,11 @@ def test_baseline_uses_training_rows_only():
     assert np.isfinite(pred).all()
     # a weekday x time cell absent from training falls back to the zipcode mean instead of predicting 0 or NaN
     short_train = p[p.bucket < START + pd.Timedelta(days=1)]
-    assert np.isfinite(baseline.historical_mean(short_train, p[p.bucket >= START + pd.Timedelta(days=3)], "t_other_30m")).all()
+    assert np.isfinite(baseline.historical_mean(short_train, short_train.t_other_30m.to_numpy(), p[p.bucket >= START + pd.Timedelta(days=3)])).all()
     assert (baseline.surge_multiplier(train, test) > 0).all()
-    lw = baseline.last_week(p, "t_other_30m")
-    assert lw[p.zipcode == "10001"].iloc[400] == p[p.zipcode == "10001"].t_other_30m.iloc[400 - 336]
+    lw = baseline.last_week(p, p.t_other_30m.to_numpy())
+    a = np.flatnonzero((p.zipcode == "10001").to_numpy())
+    assert lw[a[400]] == p.t_other_30m.to_numpy()[a[400 - 336]] and np.isnan(lw[a[10]])
 
 
 def test_scoring():
@@ -125,17 +126,81 @@ def test_saved_model_predicts_from_live_features(tmp_path):
     from grease.forecast.lgbm import ForecastModel
     p = _panel()
     feats = F.select_features(p.columns, ["id", "history", "time"])
-    split = p.bucket.iloc[300]
-    train, valid = p[p.bucket < split], p[(p.bucket >= split) & (p.bucket < p.bucket.iloc[380])]
-    m = ForecastModel(feats, {"n_estimators": 15, "min_child_samples": 5, "num_leaves": 7}).fit(train, valid, log=lambda *_: None)
+    ok = F.complete_window_mask(p)
+    split, end = p.bucket.iloc[300], p.bucket.iloc[380]
+    train_rows = np.flatnonzero(((p.bucket < split) & ok).to_numpy())
+    valid_rows = np.flatnonzero(((p.bucket >= split) & (p.bucket < end) & ok).to_numpy())
+    m = ForecastModel(feats, {"n_estimators": 15, "min_child_samples": 5, "num_leaves": 7}).fit(p, train_rows, valid_rows, log=lambda *_: None)
     m.save(tmp_path / "m")
     m2 = ForecastModel.load(tmp_path / "m")
     now = p.bucket.iloc[380]
     live = F.features_at(p[["zipcode", "bucket", "y", "y_critical"]], now)
     from_live = m2.predict(live).set_index(live["zipcode"].astype(str))
-    rows = p[p.bucket == now]
-    from_train = m.predict(rows).set_index(rows["zipcode"].astype(str))
+    rows = np.flatnonzero((p.bucket == now).to_numpy())
+    from_train = m.predict(p, rows).set_index(p.zipcode.astype(str).to_numpy()[rows])
     assert set(from_live.columns) == set(from_train.columns) and "pred_all_3h" in from_live
     assert np.allclose(from_live.loc[from_train.index, from_train.columns].to_numpy(), from_train.to_numpy(), atol=1e-6)
     assert (from_live >= 0).all().all()
     assert np.allclose(from_live["pred_all_1h"], from_live["pred_critical_1h"] + from_live["pred_other_1h"])
+
+
+def test_missing_targets_are_refused():
+    from grease.forecast.lgbm import ForecastModel
+    p = _panel()
+    feats = F.select_features(p.columns, ["id", "history"])
+    rows = np.arange(len(p))                                                   # includes the last buckets of each ZIP, whose windows are incomplete
+    try:
+        ForecastModel(feats, {"n_estimators": 3}).fit(p, rows, rows, log=lambda *_: None)
+    except ValueError as e:
+        assert "complete_window_mask" in str(e)
+    else:
+        raise AssertionError("training on rows with a missing target should be refused, not silently dropped")
+
+
+def test_future_window_matches_a_straightforward_reference():
+    p = F.add_history_features(F.build_panel(_incidents()))
+    for col, k in (("y", 1), ("y_critical", 4), ("y_other", 6)):
+        fast = F.future_window(p, col, k)
+        ref = sum(p.groupby("zipcode", observed=True)[col].shift(-j) for j in range(1, k + 1)).to_numpy(dtype="float32")
+        assert np.array_equal(np.isnan(fast), np.isnan(ref)) and np.allclose(fast[~np.isnan(fast)], ref[~np.isnan(ref)])
+
+
+def test_streaming_from_csv_matches_loading_everything(tmp_path):
+    inc = _incidents()
+    inc["incident_datetime"] = inc["incident_datetime"].dt.strftime("%Y-%m-%dT%H:%M:%S.000")
+    paths = []
+    for i, (_, chunk) in enumerate(inc.groupby(pd.to_datetime(inc["incident_datetime"]).dt.dayofyear)):
+        pth = tmp_path / f"{i}.csv"; chunk.assign(valid_incident_rspns_time_indc="Y").to_csv(pth, index=False); paths.append(pth)
+    streamed, rows = F.build_panel_from_csvs(paths)
+    whole = F.build_panel(_incidents())
+    assert sum(rows.values()) == len(inc)
+    for c in ("zipcode", "bucket", "y", "y_critical", "y_other"):
+        assert (streamed[c].astype(str).to_numpy() == whole[c].astype(str).to_numpy()).all(), c
+
+
+def test_missing_months_warn_instead_of_silently_zero_filling():
+    import warnings
+    inc = _incidents()
+    inc.loc[len(inc)] = ["10001", START + pd.Timedelta(days=40), 5]            # a gap of about 38 days with no incidents at all
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        F.build_panel(inc)
+    assert any("no incidents at all" in str(x.message) for x in w)
+
+
+def test_link_context_puts_the_right_values_in_the_right_rows():
+    p = F.build_panel(_incidents())
+    nz, nb = F.grid_shape(p)
+    idx = pd.date_range(p.bucket.min() - pd.Timedelta(hours=2), periods=nb + 8, freq="30min", name="bucket")
+    wx = pd.DataFrame({"temp_c": np.arange(len(idx), dtype=float), "is_holiday": (np.arange(len(idx)) % 2).astype(float),
+                       "eval_is_heat_day": 1.0, "humidity_pct": 5.0}, index=idx)
+    ctx = pd.DataFrame({"lon": [1.0, 2.0], "borough": ["BRONX", "QUEENS"], "population": [10.0, 20.0]}, index=pd.Index(["A", "B"], name="zone"))
+    full = F.link_context(p, wx, pd.Series({"10001": "A", "10002": "B"}), ctx, ["id", "weather", "calendar", "zone_basic"][:3] + ["zone_basic"])
+    assert "humidity_pct" not in full and "population" not in full                 # only the requested groups are built (memory)
+    assert "eval_is_heat_day" in full and full.eval_is_heat_day.dtype == "int8"      # eval flags are always attached, as int8
+    i = np.flatnonzero(((full.zipcode == "10002") & (full.bucket == p.bucket.iloc[5])).to_numpy())[0]
+    assert full.temp_c.iloc[i] == 4 + 5                                              # 4 buckets of lead-in + bucket 5
+    assert full.lon.iloc[i] == 2.0 and full.borough.iloc[i] == "QUEENS"
+    assert full.is_holiday.dtype == "int8" and full.is_holiday.iloc[i] == (4 + 5) % 2
+    # the panel's own columns are untouched and nothing was reordered
+    assert (full.y.to_numpy() == p.y.to_numpy()).all()

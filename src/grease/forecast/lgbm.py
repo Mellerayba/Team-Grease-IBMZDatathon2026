@@ -1,8 +1,9 @@
 """LightGBM Poisson forecaster: one model per (acuity, horizon) predicting expected incidents in the next window (decisions D8, M1, M8).
 
-Models are saved as LightGBM text files plus a small JSON file, which is portable across machines and CPU architectures (the VM is s390x).
+Memory: the feature matrix is built ONCE as a float32 array straight from the table (categories as integer codes), binned ONCE into a shared
+LightGBM Dataset, and only the label is swapped between the 8 models. Models are saved as LightGBM text files plus a small JSON file, which is
+portable across machines and CPU architectures (the VM is s390x).
 """
-import inspect
 import json
 from pathlib import Path
 
@@ -12,57 +13,77 @@ import pandas as pd
 
 from grease.forecast.features import ACUITY, HORIZONS, target_name
 
+# Parameter names follow LightGBM's scikit-learn interface (so notebook overrides read naturally); _core_params translates them.
 DEFAULT_PARAMS = dict(objective="poisson", n_estimators=1500, learning_rate=0.05, num_leaves=63, min_child_samples=50,
-                      subsample=0.8, subsample_freq=1, colsample_bytree=0.8, verbose=-1)
+                      subsample=0.8, subsample_freq=1, colsample_bytree=0.8)
 EARLY_STOPPING_ROUNDS = 50
-# LightGBM >= 4.7 deprecates `eval_set` in favour of `eval_X` / `eval_y`; older versions (possibly the VM's) only have `eval_set`.
-_NEW_EVAL_API = "eval_X" in inspect.signature(lgb.LGBMRegressor.fit).parameters
-
-
-def _eval_kwargs(X, y) -> dict:
-    return dict(eval_X=X, eval_y=y) if _NEW_EVAL_API else dict(eval_set=[(X, y)])
 
 
 class ForecastModel:
     def __init__(self, features: list[str], params: dict | None = None, horizons: dict = HORIZONS, acuity: list[str] = ACUITY):
         self.features, self.params = list(features), {**DEFAULT_PARAMS, **(params or {})}
         self.horizons, self.acuity = dict(horizons), list(acuity)
-        self.categories: dict[str, list] = {}          # categorical columns and their training categories, so live rows can be re-coded
+        self.categories: dict[str, list[str]] = {}          # categorical column -> training categories (coded as 0..n-1)
         self.boosters: dict[tuple[str, str], lgb.Booster] = {}
         self.best_iteration: dict[tuple[str, str], int] = {}
 
-    def _as_trained(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Feature frame with categorical columns coded exactly as in training (LightGBM requires matching categories)."""
-        feats = X[self.features].copy()
-        for col, cats in self.categories.items():
-            feats[col] = pd.Categorical(feats[col].astype(str) if str(feats[col].dtype) != "category" else feats[col], categories=cats)
-        return feats
+    def _core_params(self) -> dict:
+        p = self.params
+        return dict(objective=p["objective"], learning_rate=p["learning_rate"], num_leaves=p["num_leaves"],
+                    min_data_in_leaf=p["min_child_samples"], bagging_fraction=p["subsample"], bagging_freq=p["subsample_freq"],
+                    feature_fraction=p["colsample_bytree"], verbosity=-1, feature_pre_filter=False)
 
-    def fit(self, train: pd.DataFrame, valid: pd.DataFrame, log=print) -> "ForecastModel":
-        self.categories = {c: [str(v) for v in train[c].cat.categories] for c in self.features if str(train[c].dtype) == "category"}
-        train, valid = train.copy(deep=False), valid.copy(deep=False)
-        for col, cats in self.categories.items():          # make train and validation use the same coding (a no-op when they already do)
-            for d in (train, valid):
-                if [str(v) for v in d[col].cat.categories] != cats:
-                    d[col] = pd.Categorical(d[col].astype(str), categories=cats)
+    def _matrix(self, df: pd.DataFrame, rows=None) -> np.ndarray:
+        """Float32 matrix of the model features for `rows` (positions; all rows if None). Categorical columns become integer codes (NaN if unseen)."""
+        n = len(df) if rows is None else len(rows)
+        X = np.empty((n, len(self.features)), dtype=np.float32)
+        for j, c in enumerate(self.features):
+            s = df[c]
+            if c in self.categories:
+                cats = self.categories[c]
+                if str(s.dtype) == "category" and [str(v) for v in s.cat.categories] == cats:
+                    codes = s.cat.codes.to_numpy()
+                else:
+                    codes = pd.Categorical(s.astype(str), categories=cats).codes
+                col = codes if rows is None else codes[rows]
+                X[:, j] = np.where(col >= 0, col, np.nan)
+            else:
+                v = s.to_numpy()
+                X[:, j] = v if rows is None else v[rows]
+        return X
+
+    def fit(self, df: pd.DataFrame, train_rows, valid_rows, targets=None, log=print) -> "ForecastModel":
+        """`train_rows` / `valid_rows`: row positions in `df`. `targets(acuity, horizon)` returns a float32 array aligned to df
+        (default: read the `t_<acuity>_<horizon>` columns). Rows used for training must have no missing target."""
+        self.categories = {c: [str(v) for v in df[c].cat.categories] for c in self.features if str(df[c].dtype) == "category"}
+        cat_idx = [j for j, c in enumerate(self.features) if c in self.categories]
+        get = targets or (lambda a, h: df[target_name(a, h)].to_numpy())
+        params = self._core_params()
+        ds_args = dict(feature_name=self.features, categorical_feature=cat_idx, params=params, free_raw_data=True)
+        dtrain = lgb.Dataset(self._matrix(df, train_rows), label=np.zeros(len(train_rows), np.float32), **ds_args).construct()
+        dvalid = lgb.Dataset(self._matrix(df, valid_rows), label=np.zeros(len(valid_rows), np.float32), reference=dtrain, **ds_args).construct()
         for a in self.acuity:
             for h in self.horizons:
-                t = target_name(a, h)
-                tr, va = train[train[t].notna()], valid[valid[t].notna()]
-                model = lgb.LGBMRegressor(**self.params)
-                model.fit(tr[self.features], tr[t], **_eval_kwargs(va[self.features], va[t]),
-                          callbacks=[lgb.early_stopping(EARLY_STOPPING_ROUNDS, verbose=False)])
-                self.boosters[(a, h)] = model.booster_
-                self.best_iteration[(a, h)] = int(model.best_iteration_ or self.params["n_estimators"])
-                log(f"  {t}: {len(tr):,} training rows, best iteration {self.best_iteration[(a, h)]}")
+                y = get(a, h)
+                ytr, yva = y[train_rows], y[valid_rows]
+                if np.isnan(ytr).any() or np.isnan(yva).any():
+                    raise ValueError(f"{target_name(a, h)} has missing values in the training / validation rows: drop incomplete windows first "
+                                     f"(features.complete_window_mask)")
+                dtrain.set_label(ytr)
+                dvalid.set_label(yva)
+                booster = lgb.train(params, dtrain, num_boost_round=self.params["n_estimators"], valid_sets=[dvalid],
+                                    callbacks=[lgb.early_stopping(EARLY_STOPPING_ROUNDS, verbose=False)])
+                self.boosters[(a, h)] = booster
+                self.best_iteration[(a, h)] = int(booster.best_iteration or self.params["n_estimators"])
+                log(f"  {target_name(a, h)}: {len(train_rows):,} training rows, best iteration {self.best_iteration[(a, h)]}")
         return self
 
-    def predict(self, X: pd.DataFrame) -> pd.DataFrame:
+    def predict(self, df: pd.DataFrame, rows=None) -> pd.DataFrame:
         """Expected incidents in the next window for every row: pred_<acuity>_<horizon> and pred_all_<horizon> (= critical + other)."""
-        out = pd.DataFrame(index=X.index)
-        feats = self._as_trained(X)
+        X = self._matrix(df, rows)
+        out = pd.DataFrame(index=df.index if rows is None else df.index[rows])
         for (a, h), booster in self.boosters.items():
-            out[f"pred_{a}_{h}"] = booster.predict(feats).astype("float32")
+            out[f"pred_{a}_{h}"] = booster.predict(X).astype("float32")
         for h in self.horizons:
             if all(f"pred_{a}_{h}" in out for a in ("critical", "other")):
                 out[f"pred_all_{h}"] = out[f"pred_critical_{h}"] + out[f"pred_other_{h}"]
@@ -73,7 +94,8 @@ class ForecastModel:
         for (a, h), booster in self.boosters.items():
             booster.save_model(str(d / f"{a}_{h}.txt"))
         (d / "meta.json").write_text(json.dumps({"features": self.features, "params": self.params, "horizons": self.horizons,
-                                                  "acuity": self.acuity, "categories": self.categories, "best_iteration": {f"{a}_{h}": v for (a, h), v in self.best_iteration.items()}}, indent=2))
+                                                  "acuity": self.acuity, "categories": self.categories,
+                                                  "best_iteration": {f"{a}_{h}": v for (a, h), v in self.best_iteration.items()}}, indent=2))
 
     @classmethod
     def load(cls, directory) -> "ForecastModel":

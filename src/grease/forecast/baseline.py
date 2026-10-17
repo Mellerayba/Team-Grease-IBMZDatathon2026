@@ -16,12 +16,14 @@ def _cell(df: pd.DataFrame) -> np.ndarray:
     return (df["zipcode"].cat.codes.to_numpy().astype("int64") * 7 + df["dow"].to_numpy().astype("int64")) * 48 + half_hour
 
 
-def historical_mean(train: pd.DataFrame, test: pd.DataFrame, target: str) -> np.ndarray:
-    """Per-row prediction for `test`. Unseen cells fall back to the zipcode mean, then the overall mean."""
+def historical_mean(train: pd.DataFrame, y_train: np.ndarray, test: pd.DataFrame) -> np.ndarray:
+    """Per-row prediction for `test` from `train` (needs columns zipcode, dow, hour) and its targets `y_train`.
+    Unseen cells fall back to the zipcode mean, then the overall mean."""
     n_zip = len(train["zipcode"].cat.categories)
     size = n_zip * 7 * 48
-    ok = train[target].notna().to_numpy()
-    cell, y = _cell(train)[ok], train[target].to_numpy()[ok].astype("float64")
+    y_train = np.asarray(y_train)
+    ok = ~np.isnan(y_train)
+    cell, y = _cell(train)[ok], y_train[ok].astype("float64")
     total, count = np.bincount(cell, weights=y, minlength=size), np.bincount(cell, minlength=size)
     cell_mean = np.where(count > 0, total / np.maximum(count, 1), np.nan)
 
@@ -48,6 +50,12 @@ def surge_multiplier(train: pd.DataFrame, test: pd.DataFrame, lo: float = 0.5, h
     return test["bucket"].map(mult).to_numpy(dtype="float64")
 
 
-def last_week(panel: pd.DataFrame, target: str) -> pd.Series:
-    """The target one week earlier for the same zipcode. Fully observed at issue time because every horizon is shorter than a week."""
-    return panel.groupby("zipcode", observed=True)[target].shift(BUCKETS_PER_WEEK)
+def last_week(panel: pd.DataFrame, values: np.ndarray) -> np.ndarray:
+    """`values` (a target aligned to the panel rows) shifted one week for each ZIP. Fully observed at issue time because every horizon is
+    shorter than a week. NaN for the first week."""
+    from grease.forecast.features import grid_shape
+    nz, nb = grid_shape(panel)
+    a = np.asarray(values, dtype="float32").reshape(nz, nb)
+    out = np.full_like(a, np.nan)
+    out[:, BUCKETS_PER_WEEK:] = a[:, :-BUCKETS_PER_WEEK]
+    return out.ravel()
