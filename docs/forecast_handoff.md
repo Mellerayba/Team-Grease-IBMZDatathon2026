@@ -56,8 +56,8 @@ zone_pred = Z.aggregate_to_zones(pred.assign(zipcode=rows.zipcode, bucket=now), 
 `features_at` builds exactly the features the model was trained on (a test checks this).
 
 ## 4. Know before you rely on it
-- **The model is about 6% low on 2022** (predicted / actual = 0.94 in every slice). It was trained on Jan-Sep 2021 only and 2022 had about 6% more incidents. A 7-day / 28-day level feature was added to help, but a small test moved the bias by only about 1 point, so assume it is still low until the next full run. Compare policies on *relative* demand (it is uniform across zones), and be careful with absolute counts such as the busy-unit probability.
-- **Accuracy over the historical average is small** (about 0.4-1.3% lower error, 5-7% lower deviance at the ZIP-half-hour level; see `docs/decisions.md` section 3). Zone totals over an hour or more are far less noisy than the single cells the score table measures.
+- **The model is about 4% low on 2022** (predicted / actual = 0.96 in every slice and horizon; it was 0.94 before the 7-day / 28-day level features). It was trained on Jan-Sep 2021 only and 2022 had about 6% more incidents. The shortfall is nearly uniform across zones and across the demand range, so compare policies on *relative* demand and treat absolute counts (such as the busy-unit probability) as roughly 4% low.
+- **Accuracy over the historical average is small** (0.0-1.6% lower MAE, 5-7% lower deviance at the ZIP-half-hour level; see `docs/decisions.md` section 3). The forecast is essentially last week's level for that ZIP times the usual shape for the time of day; weather adds almost nothing. Zone totals over an hour or more are far less noisy than the single cells the score table measures.
 - **The `hist_all_*` and `pred_*` columns come from a model fitted before 2022; `actual_*` is 2022.** Do not tune policy parameters on the same year you report results for.
 - **ZIP-level values are summed into zones**, which is exact for expected counts. About 0.1% of incidents are in ZIPs that belong to no zone and are dropped.
 - Resolution is the 30-minute bucket. Locations are zone-level, so travel times must use zone centroids.

@@ -60,21 +60,27 @@ About 4 GB in memory for two years, so roughly 14 GB for 2016-2022.
 **Baselines (same rows, same targets):** historical mean for that ZIP x weekday x time; that mean x a citywide recent-surge multiplier; the same window one week earlier.
 **Reported:** MAE, Poisson deviance and bias, overall and on heat days, heavy-rain days, the 20 busiest ZIPs and each borough; calibration by prediction decile; feature importance.
 
-**Status: first real run done on the VM (2026-10-17).** Trained on Jan-Sep 2021, validated on Oct-Dec 2021, tested on all of 2022 (4.13M ZIP-half-hours per horizon, 29 features). Results (`forecast_scores.csv`):
+**Status: two real runs done on the VM (2026-10-17).** Both trained on Jan-Sep 2021 (3.09M rows), validated on Oct-Dec 2021 (1.04M) and tested on all of 2022 (4.13M ZIP-half-hours per horizon). Run 1 used 29 features; run 2 added the 7-day and 28-day level features (31 features). Run 2, all test rows (the notebook export it came from was deleted; the numbers are kept here):
 
-| Horizon | Model MAE | Best baseline MAE (historical mean) | MAE gain | Deviance model vs baseline |
-|---|---|---|---|---|
-| 30 min | 0.390 | 0.392 | 0.4% | 0.680 vs 0.728 |
-| 1 h | 0.568 | 0.573 | 0.9% | 0.808 vs 0.855 |
-| 2 h | 0.819 | 0.830 | 1.2% | 0.895 vs 0.945 |
-| 3 h | 1.019 | 1.033 | 1.3% | 0.932 vs 0.986 |
+| Horizon | Model MAE | Historical-mean MAE | MAE gain | Deviance: model / hist mean / surge | Bias (pred / actual) |
+|---|---|---|---|---|---|
+| 30 min | 0.3914 | 0.3915 | 0.0% | 0.678 / 0.728 / 0.725 | 0.961 |
+| 1 h | 0.5689 | 0.5731 | 0.7% | 0.805 / 0.855 / 0.849 | 0.961 |
+| 2 h | 0.8186 | 0.8295 | 1.3% | 0.887 / 0.945 / 0.935 | 0.958 |
+| 3 h | 1.0161 | 1.0329 | 1.6% | 0.920 / 0.986 / 0.972 | 0.958 |
 
 Findings:
-- The model beats every baseline on both metrics at every horizon, but by little: 0.4-1.3% on MAE, 5-7% on deviance. A ZIP gets about 0.38 calls per half-hour, so most of the remaining error is random noise, and the historical profile for that ZIP, weekday and time is already a strong predictor.
-- **The model under-predicts by about 6% in every slice and horizon.** 2022 had about 6.2% more incidents than 2021 (1,583,531 vs 1,491,454, API totals) and the model had no feature for the long-run level. Most likely a level shift, not noise.
-- The "scale by recent citywide activity" baseline (`hist_x_surge`) was **worse** than the plain historical mean at every horizon, and the same-window-last-week baseline was much worse.
-- Gains are largest on the 20 busiest ZIPs (1.1-1.7%) and on heat days at longer horizons (+1.5% at 2 h, +2.0% at 3 h), and about zero or slightly negative for Queens and Staten Island at 30 minutes and for heat days at 30 minutes. Gains concentrate in the high-demand boroughs.
-- Not yet checked: calibration by decile, feature importance, and accuracy at the level the optimizer uses (zone totals over 1-3 h, and whether the zones flagged as busiest really are).
+- **The model beats every baseline on deviance at every horizon (5-7% lower than the historical mean), but its MAE gain is tiny** (0.0% at 30 min up to 1.6% at 3 h). A ZIP gets about 0.38 calls per half-hour, so most of what is left is random noise, and the historical profile for that ZIP, weekday and time is already a strong predictor.
+- **Level features (run 1 -> run 2):** bias went from about 6.2% low to about 4% low (0.94 -> 0.96). MAE gain at 2-3 h rose (1.2 -> 1.3%, 1.3 -> 1.6%) and at 30 min fell (0.4 -> 0.0%); deviance improved slightly at every horizon.
+- **Calibration** (predicted vs actual by prediction decile): ratios of 0.94-0.97 in deciles 2-9 for both the 1 h and 3 h forecasts, and 0.82-0.94 in the lowest deciles (windows with fewer than about 0.02 expected calls). So the shortfall is a near-uniform ~4% level shift, and the ranking of zones is intact. Likely cause: 2022 had about 6% more incidents than 2021 and the model only trained on 2021.
+- **Feature importance** (share of total gain, averaged over the 8 models): `roll_7d` 70.6%, `roll_24h` 10.4%, `zipcode` 8.5%, `hour` 7.3%, `roll_28d` 1.1%, everything else 0.4% or less (temperature 0.3%, feels-like, wind, rain, population about 0.1% each; the holiday flags are not in the top 15). The model is essentially "last week's level for this ZIP x the usual shape for this ZIP and time of day". **Weather adds almost nothing at this resolution, so we should not claim a weather-driven forecast.**
+- **Baselines:** the "scale by recent citywide activity" baseline (`hist_x_surge`) has slightly *worse* MAE than the plain historical mean but slightly *better* deviance, and is clearly better on heat days (3 h deviance 0.983 vs 1.037); the same-window-last-week baseline is much worse on both. (An earlier version of this note said the surge baseline was worse everywhere; that was true for MAE only.)
+- **Where the model helps:** longer horizons, the 20 busiest ZIPs (+2.1% MAE at 3 h), Manhattan (+2.2% at 3 h), heat days (+2.2% at 3 h). It is slightly worse than the historical mean at 30 min in Queens (-0.5%), Manhattan (-0.3%), Staten Island (-0.3%) and on heat days (-1.2%).
+- **Risk snapshot:** the busiest half-hour of the test year (2022-03-30 11:00) ranks 10456, 11212, 10457 (Bronx and Brooklyn), 10029 (East Harlem) and 10467 highest: plausible high-need areas.
+- **Known gap, one example:** at midnight on New Year's Day 2022, zone 10001 had 16 calls in the next 3 hours against 6.4 forecast and 7.2 from the historical mean. Neither handles special events; the slim EMS download drops `special_event_indicator`.
+- **Hand-off table written:** 3,101,040 rows, 177 zones, 24 columns (`docs/forecast_handoff.md`).
+
+Run 1 for comparison (no level features): MAE gain 0.4 / 0.9 / 1.2 / 1.3% and bias 0.94 at 30 min / 1 / 2 / 3 h.
 
 ### Previous model (original, replaced)
 Predicted incidents in the *same* bucket from lags (one-step ahead only), all columns of `panel` as features, 60 / 15 / 25 percent split by time fraction, and a baseline that predicted zero for some cells. Its saved results came from a 33-day 2005 sample and should not be quoted. Limitations L1-L7 below are what the rewrite fixes.
@@ -122,7 +128,7 @@ Plan: change one group at a time and compare against the same baseline, so each 
 | F12 | **Baseline** | zipcode x weekday x hour mean (now); the same x a recent-surge multiplier; "same bucket last week" | Report all three; the surge-multiplier version is the one in the plan | Proposed | Fixes L2; the model must beat the best of them to claim anything |
 | F13 | **Evaluation** | MAE and deviance only; add decision-relevant metrics | Add error on the busiest zones, on heat days, and per borough (equity gap) | Proposed | Matches how the optimizer uses the forecast |
 | F14 | **Whole-day weather flags** | - | Never as features (D5) | Decided | Leakage |
-| F15 | **Surge baseline** | keep; drop; rework as a per-ZIP multiplier | Report it as "tried, did not help" (worse than the plain historical mean at every horizon) and stop using it as a comparison target | Proposed | Result above |
+| F15 | **Surge baseline** | keep; drop; rework as a per-ZIP multiplier | Keep it as a comparison: worse than the plain historical mean on MAE, slightly better on deviance and clearly better on heat days | Proposed | Run 2 results above |
 | F16 | **Long-run level features** (7-day and 28-day rolling counts per ZIP) | none; add | **Added** (`roll_7d`, `roll_28d`) to track year-on-year drift | Implemented, effect small | Smoke test (2017, train Jan-Mar, test Jun-Dec): bias moved from 0.970 to 0.981 at 3 h and from 0.987 to 1.002 at 1 h, error unchanged. Tree models cannot extrapolate beyond the levels seen in training, so this is unlikely to fully remove a 6% year-on-year gap. Re-test on the VM (train 2021, test 2022) |
 | F17 | **Rate offset** | none; model the ratio to the recent level (LightGBM `init_score` = log of the 28-day average rate, prediction = exp(raw score + offset)) | The principled fix if F16 is not enough: the model learns multiplicative deviations from the current level, so a drifting level cannot cap the prediction | Open | Needs F16's VM result first |
 
@@ -180,3 +186,4 @@ Why this matters: the notebook kernel died while building the panel for the late
 | 2026-10-17 | Added D11 and section 6 (platform notes) and `scripts/vm_check.py` after the VM kernel died again at the panel cell |
 | 2026-10-17 | VM measured: 8.4 GB RAM (5.6 GB free), 3 CPUs, IBM z17-generation LinuxONE with the `nnpa` AI-accelerator flag exposed; two years of data build the panel in 6 s and 1.6 GB. The kernel died because the notebook still defaulted to all seven years, so the repo default is now 2021-2022 (train Jan-Sep 2021, validate Q4 2021, test 2022). The full 2016-2022 history needs a bigger machine, so F11 / F10 experiments over many years are limited on the VM |
 | 2026-10-17 | First real run recorded (section 3). Added 7-day / 28-day level features (F16), the zone-level hand-off export and `docs/forecast_handoff.md` (M11), the four-policy comparison with an oracle (D12), and F15-F17 |
+| 2026-10-17 | Run 2 (with level features) recorded, including calibration, feature importance (roll_7d 71%, weather about 1% in total) and the risk snapshot. Corrected an earlier claim: the surge baseline is worse on MAE but not on deviance |
