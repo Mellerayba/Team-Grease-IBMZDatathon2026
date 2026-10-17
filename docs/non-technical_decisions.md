@@ -19,8 +19,10 @@ We selected NYC because it is a megacity that has large amounts of data suggesti
 *   **Worsening Delays:** "Emergency Medical Services take 11 minutes and 21 seconds to arrive on the scene, a 29-second increase compared to last year and 1 minute and 4 seconds longer than in 2023." (The MidTown Gazette, September 2026).
 *   **Deteriorating Impact:** "the FDNY reporting that just 16 percent of cardiac arrest patients were revived in FY26, down from 17 percent the year before and 20 percent in Fiscal Year 2024." (The Chief, September 2026).
 
+Response time should be around 8 minutes by standard in the USA but these services take much longer. This could be a matter of life and death as the deliberator has to be on site within 8 minutes in the case of a cardiac arrest. As the Chief suggests, more people are dying due to this increased wait time.
+
 ## Our Solution 
-Our solution will optimise the location and routing of ambulances in New York so that they do not have as far to travel to reach the site of an incident.
+Our solution will be to implement a new system in New York, where medics are on motorcycles/e-bikes told to patrol in areas suggested by the ai based on past incidents and the weather conditions.
 
 The user will input the weather, time of year and calls currently coming in and use this with an AI model based on past data to predict where to base ambulances at that specific time.
 
