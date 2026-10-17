@@ -72,5 +72,3 @@ Add the dashboard and surge-day case study.
 Polish the story: problem, method, results, limitations.
 
 Steps 3 and 4 are the heart of the project, so protect time for them over fancy forecasting.
-
-If you tell me how many people and how many hours you have, I can cut this down to a realistic MVP, or start with code for the replay engine and simulator skeleton.
