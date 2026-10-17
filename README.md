@@ -48,5 +48,9 @@ We will use open, publicly available datasets:
 
 All data is open, properly licensed and contains no personal information.
 
----
 
+## Open-Source Libraries Usage
+
+This project is built entirely on open-source libraries and frameworks running on IBM LinuxONE:
+
+| Component | Open-Source Library | License | Usage in Architecture |
