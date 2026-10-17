@@ -56,7 +56,12 @@ The project uses the following libraries and tools for its Python workflows and 
 | Component | Open-Source Library | License | Usage in Architecture |
 | :--- | :--- | :--- | :--- |
 | **Data Processing** | [pandas](https://github.com/pandas-dev/pandas) | BSD 3-Clause | Cleaning, aggregation, and spatial crosswalk operations |
+| **Matrix & Math** | [NumPy](https://github.com/numpy/numpy) | BSD 3-Clause | Array manipulation and Haversine straight-line distance calculations |
+| **Network Retrieval** | [OSMnx](https://github.com/gboeing/osmnx) | MIT | Downloading drivable street networks, imputing speeds, and travel times |
+| **Graph Analysis** | [NetworkX](https://github.com/networkx/networkx) | BSD 3-Clause | Calculating the mathematically quickest route through the street graph |
+| **Spatial Data Handling**| [GeoPandas](https://github.com/geopandas/geopandas) | BSD 3-Clause | Managing route geometries and enabling `.explore()` interactive maps |
 | **Spatial Prototyping** | [Folium](https://github.com/python-visualization/folium) | MIT | Interactive Leaflet-based map visualization |
+| **Map Categorization** | [mapclassify](https://github.com/pysal/mapclassify) | BSD 3-Clause | Backend dependency for rendering GeoPandas interactive maps |
 | **Data Ingestion** | [sodapy](https://github.com/xmunoz/sodapy) | MIT | Socrata Open Data API client for fetching NYC EMS & health records |
 | **Configuration** | [python-dotenv](https://github.com/theskumar/python-dotenv) | BSD 3-Clause | Loading local environment variables and API credentials |
 | **Simulation Interface** | [React](https://github.com/facebook/react) | MIT | Simulation controls, interface components, and state updates |

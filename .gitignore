@@ -5,7 +5,6 @@ __pycache__/
 
 # C extensions
 *.so
-.csv
 # Distribution / packaging
 .Python
 build/
@@ -226,3 +225,11 @@ __marimo__/
 notebooks/data/raw/*
 notebooks/data/processed/*
 .DS_Store
+
+# EMS downloads (about 670 MB: yearly files plus the same data again as page files); the fetch cell in
+# notebooks/HarryRowlands.ipynb regenerates them, so they must never be committed
+notebooks/ems_raw/
+ems_raw/
+# stray score / export files dropped in the repo root
+/*.csv
+/*.csv.gz

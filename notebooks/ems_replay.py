@@ -1,5 +1,5 @@
 """
-replay.py - glue between your trained forecaster and routing_policy.py, at ZIP-code level.
+ems_replay.py - glue between your trained forecaster and routing_policy.py, at ZIP-code level.
 
   load_zip_centroids / build_zip_table : ZIP -> borough, lat, lon (the policy's `zones` table)
   forecast_by_bucket                   : model `pred` -> {issue bucket: ZIP forecast table}
@@ -101,7 +101,8 @@ def default_traffic(ts: pd.Timestamp) -> float:
 def run_replay(zips: pd.DataFrame, fc_by_bucket: dict, incidents: pd.DataFrame, static_fc: pd.DataFrame,
                vulnerability: pd.Series | None, *, dynamic: bool, n_units: int, start, end,
                hospital_zips=(), cfg: PolicyConfig | None = None, issue_offset=pd.Timedelta("30min"),
-               cycle_min: int = 30, scene_min: float = 15.0, traffic_fn=default_traffic, seed: int = 0):
+               cycle_min: int = 30, scene_min: float = 15.0, traffic_fn=default_traffic, seed: int = 0,
+               label: str | None = None):
     start, end = pd.Timestamp(start), pd.Timestamp(end)
     assert start.minute % cycle_min == 0 and start.second == 0, "start must sit on a cycle boundary"
     rng = np.random.default_rng(seed)
@@ -130,17 +131,22 @@ def run_replay(zips: pd.DataFrame, fc_by_bucket: dict, incidents: pd.DataFrame, 
 
     home = pol.optimal_layout(static_fc, n_units, LiveState(start, [], 1.0), vulnerability)
     U = {f"U{i}": dict(zone=home[i], home=home[i], status="idle", free_at=0.0, free_zone=home[i],
-                       moves=[], freed=False, job=False, home_at=None) for i in range(n_units)}
+                       moves=[], freed=False, job=False, home_at=None, move_to=None, arrive_at=None) for i in range(n_units)}
 
-    def mk_state(m, t):
-        return LiveState(t, [Unit(k, u["zone"], u["status"], max(u["free_at"] - m, 0.0), u["free_zone"],
-                                  len(u["moves"]), u["freed"]) for k, u in U.items()], traffic_fn(t), 0.0)
+    def mk_state(m, t, planning=False):
+        # A repositioning unit stays IDLE and dispatchable while it drives (as in real life). The planner is told where it is
+        # heading (planning=True) so it does not move it again; dispatch is told where it still is (planning=False, conservative).
+        return LiveState(t, [Unit(k, (u["move_to"] if planning and u["move_to"] else u["zone"]), u["status"],
+                                  max(u["free_at"] - m, 0.0), u["free_zone"], len(u["moves"]), u["freed"])
+                             for k, u in U.items()], traffic_fn(t), 0.0)
 
     queue, resp, cycles, moves_log = [], [], [], []
     for m in range(int((end - start).total_seconds() // 60)):
         t = start + pd.Timedelta(minutes=m)
         tm = traffic_fn(t)
         for u in U.values():
+            if u["move_to"] is not None and u["arrive_at"] <= m:      # a repositioning unit has arrived
+                u["zone"], u["move_to"], u["arrive_at"] = u["move_to"], None, None
             if not dynamic and u["status"] == "idle" and u["home_at"] is not None and u["home_at"] <= m:
                 u["zone"], u["home_at"] = u["home"], None        # static unit has driven home
             if u["status"] == "busy" and u["free_at"] <= m:
@@ -152,10 +158,10 @@ def run_replay(zips: pd.DataFrame, fc_by_bucket: dict, incidents: pd.DataFrame, 
             if fc is None:
                 cycles.append(dict(time=t, note="no forecast for this cycle: held positions"))
             else:
-                dec = pol.reposition(fc, mk_state(m, t), vulnerability)
+                dec = pol.reposition(fc, mk_state(m, t, planning=True), vulnerability)
                 for mv in dec.moves:
                     u = U[mv.unit_id]
-                    u.update(status="busy", free_at=m + mv.travel_min, free_zone=mv.to_zone, freed=False, job=False)
+                    u.update(move_to=mv.to_zone, arrive_at=m + mv.travel_min, freed=False)
                     if mv.kind == "relocation":
                         u["moves"].append(m)
                     moves_log.append(dict(time=t, unit=mv.unit_id, kind=mv.kind, from_zip=mv.from_zone,
@@ -182,7 +188,7 @@ def run_replay(zips: pd.DataFrame, fc_by_bucket: dict, incidents: pd.DataFrame, 
                 u = U[ch.unit_id]
                 hzi = inc_h[i]
                 busy = ch.eta_min + scene_min + svc[i] + pol.tt_base[inc_zi[i], hzi] * tm
-                u.update(status="busy", free_at=m + busy, free_zone=pol.ids[hzi], job=True, freed=False)
+                u.update(status="busy", free_at=m + busy, free_zone=pol.ids[hzi], job=True, freed=False, move_to=None, arrive_at=None)
                 if not dynamic:                               # static units drive home but stay dispatchable
                     u["home_at"] = m + busy + pol.tt_base[hzi, pol.ix[u["home"]]] * tm
                 su[ch.unit_id].status, su[ch.unit_id].free_in_min = "busy", busy
@@ -191,7 +197,7 @@ def run_replay(zips: pd.DataFrame, fc_by_bucket: dict, incidents: pd.DataFrame, 
                                  wait=m - inc_m[i], eta=ch.eta_min, minutes=(m - inc_m[i]) + ch.eta_min))
             queue = rest
 
-    return dict(policy="dynamic" if dynamic else "static", responses=pd.DataFrame(resp),
+    return dict(policy=label or ("dynamic" if dynamic else "static"), responses=pd.DataFrame(resp),
                 cycles=pd.DataFrame(cycles), moves=pd.DataFrame(moves_log), unserved=len(queue),
                 dropped_incidents=dropped, n_incidents=n)
 
@@ -203,7 +209,7 @@ def summarize(results: list[dict], zips: pd.DataFrame | None = None, target_min:
         d = r["responses"]
         c = d[d.acuity == "critical"]
         cy = r["cycles"]
-        rows.append(dict(policy=r["policy"], incidents=r["n_incidents"], unserved=r["unserved"],
+        rows.append(dict(policy=r["policy"], incidents=r["n_incidents"], dropped=r["dropped_incidents"], unserved=r["unserved"],
                          crit_within_target_pct=100 * (c.minutes <= target_min).mean(),
                          crit_mean_min=c.minutes.mean(), crit_p90_min=c.minutes.quantile(.9),
                          all_mean_min=d.minutes.mean(), moves=len(r["moves"]),
