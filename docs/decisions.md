@@ -36,7 +36,7 @@ State below is as of **2026-10-17, afternoon**.
 | **Asthma rates** (2017-19, 188 neighbourhoods) | Done, borough level | Borough asthma rate per 10,000 (as given in the source file; we have not confirmed whether it counts ED visits or hospitalisations): Bronx 190.7, Brooklyn 115.2, Staten Island 96.3, Manhattan 89.5, Queens 64.1 | No neighbourhood -> zone crosswalk, so borough only; constant within a borough |
 | **Community health survey** | Done | 11 yearly rows, citywide only | No geography, so context only |
 | **Zone context** (`zone_context.csv`: borough, location, population, asthma rate, distance to nearest hospital, hospitals / firehouses in zone) | Done | 178 zones | Borough comes from the community district containing the zone centroid |
-| **Census ACS** (population, income, no-vehicle households, poverty) | **Not fetched** | - | Needs a free API key (https://api.census.gov/data/key_signup.html) |
+| **Census ACS** (2022 5-year: population, median income, no-vehicle households, poverty) | Done | 177 of 178 zones; in `zone_context.csv` and so in `full` | Zone populations sum to about 8.7M vs roughly 8.3-8.5M for the city (ZIP areas extend past the boundary), so approximate. By borough, households without a vehicle: Manhattan 78%, Bronx 60%, Brooklyn 55%, Queens 34%, Staten Island 15% |
 | **Road network (OpenStreetMap)** | Not fetched | - | Needed only for travel times; fast option is haversine distance x detour factor |
 | Emergency call text | Not available | - | No public source; would need clearly labelled synthetic data |
 
@@ -98,3 +98,4 @@ Plan: change one group at a time and compare against the same baseline, so each 
 | Date | Change |
 |---|---|
 | 2026-10-17 | Log created. Data linked into `full`; model deliberately left unchanged (D3, D4) |
+| 2026-10-17 | Census fetched and joined into the zone context (affects F7: population, income, vehicle access and poverty are now candidate features) |

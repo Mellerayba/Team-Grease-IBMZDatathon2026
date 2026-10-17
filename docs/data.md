@@ -22,7 +22,7 @@ Run `DarraghC.ipynb` first (about 10 seconds once the raw files are cached), the
 | **Hospitals, firehouses** | NY State Health `vn5v-hh5r`, FDNY `hc8x-tcnd` | `DarraghC.ipynb` 8 | `interim/posts.csv` | Transport destinations; candidate staging posts |
 | **FDNY monthly response times** | NYC Open Data `j34j-vqvt` | `DarraghC.ipynb` 9 | `interim/fdny_monthly.csv` | Benchmark for the simulator's baseline |
 | **Asthma rates** (NTA, 2017-19), **health survey** (citywide) | repo CSVs in `notebooks/data/` | `DarraghC.ipynb` 10 | `interim/asthma_*.csv`, `health_survey_citywide.csv` | Health context (borough asthma rate), equity narrative |
-| **Census ACS 5-year** (population, income, no-vehicle, poverty) | Census API, **needs a free key** https://api.census.gov/data/key_signup.html (activate it from the email), put it in the git-ignored `.env` as `CENSUS_API_KEY=...` (see `.env.example`) | `DarraghC.ipynb` 10 | `interim/census_zone.csv` | Population weighting, fairness audit. Skipped without a key |
+| **Census ACS 5-year** (population, income, no-vehicle, poverty) | Census API, **needs a free key** https://api.census.gov/data/key_signup.html (activate it from the email), put it in the git-ignored `.env` as `CENSUS_API_KEY=...` (see `.env.example`) | `DarraghC.ipynb` 10 | `interim/census_zone.csv` | Population weighting, fairness audit. Skipped without a key; joined into `zone_context.csv` |
 | **Zone context** (all of the zone-level sources above in one table) | built from the rows above | `DarraghC.ipynb` 10 | `interim/zone_context.csv` | One join gives borough, location, population, asthma rate, hospital access |
 | Road network (OpenStreetMap) | OSMnx / OSRM | - | not fetched yet | Travel-time matrix (or haversine x detour factor as the fast option) |
 
@@ -48,6 +48,6 @@ For a model that predicts `h` buckets ahead, weather must be shifted back `h` bu
 
 ## Open items
 1. **EMS download is 4 columns only** (time, ZIP, initial severity, response-valid flag). The simulator also needs stage durations (on scene, transport, job) and real response times, so the fetch will need extra columns (`first_on_scene_datetime`, `first_to_hosp_datetime`, `first_hosp_arrival_datetime`, `incident_close_datetime`, `incident_response_seconds_qy`, ...) before we build it.
-2. Census key: added to `.env` but **Census currently rejects it** (probably not activated yet); once it works, rerun `DarraghC.ipynb` (section 6 fetches, section 10 joins it into `zone_context.csv`).
+2. ~~Census key~~ done: ACS 5-year (2022) fetched and joined into `zone_context.csv` for 177 of 178 zones (zone `99999` is not residential). Summed zone populations come to about 8.7M against roughly 8.3-8.5M for the city, because some ZIP areas extend past the city boundary, so treat population as approximate.
 3. Road network for travel times, or accept haversine x detour factor.
 4. Confirm the severity-code meaning and the target acuity band (assumed 1 = most critical).
