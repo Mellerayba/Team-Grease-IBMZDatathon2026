@@ -26,5 +26,25 @@ Medical emergencies sometimes require a response time faster than is possible wi
 **Data limitation.**
 - NYC's public EMS dispatch data aggregates incident locations to protect patient privacy, so our analysis works at area level, not street level ([data.gov](https://catalog.data.gov/dataset/ems-incident-dispatch-data)).
 
+## Proposed Solution
+Instead of waiting for an emergency service call, we will use AI to predict where health crises may occur, and proactively route mobile health clinics before the crisis happens.
 
+## Target Audience
+1. **Emergency medical dispatchers and operations leaders:** Use the recommendations to decide which unit to send and where to position idle units. 
+2. **Public health and policy planners:** Use the fairness analysis to find neighbourhoods with the slowest response and target staffing and funding. 
+3. **Hospital and community health managers:** Plan outreach and support around predicted demand spikes. 
+4. **Residents of underserved areas:** The end beneficiaries, who gain faster care and fairer allocation of resources. 
+5. **Researchers and civic technologists:** Reuse the open-source approach with other cities' open data.
+
+## Datasets
+We will use open, publicly available datasets: 
+1. **Public EMS dispatch data** (e.g. NYC Open Data EMS Incident Dispatch Data): Incident time, severity level, and dispatch and travel times, aggregated by area to protect privacy. 
+2. **Public response-time reports** (e.g. FDNY monthly response times): Benchmarks to validate our findings. 
+3. **Hospital and station locations** from public health and city sources. 
+4. **Census data:** Population, income and vehicle access by area, to weight demand and audit fairness. 
+5. **Weather data** (e.g. NOAA): To improve demand forecasts. 
+6. **Open road network data** (OpenStreetMap): For travel-time estimates. 
+7. **Emergency call text:** Public or synthetic, clearly labelled, with no personal data. All data is open, properly licensed and contains no personal information.
+
+---
 
