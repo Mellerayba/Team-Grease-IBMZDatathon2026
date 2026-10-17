@@ -54,7 +54,7 @@ Real 2022-07-19 heat-wave day, 4,694 incidents, 330 units, demo export:
 | **Model-guided (our forecast)** | **91.2%** | **7.8 min** |
 | Oracle (perfect foresight) | 93.4% | 7.4 min |
 
-Averaged over two real days (heat wave and an October day) in the model notebook: static 76.4%, scheduled 84.4%, forecast 84.9%, oracle 86.2%. Be clear about what this means: most of the gain comes from positioning by expected demand at all; our ML forecast adds only a little over a schedule built from history, and its accuracy gain over the historical average is small (5-7% lower Poisson deviance, 0-1.6% lower MAE). Weather adds almost nothing to the forecast. The dynamic policy does worse than the static layout in Staten Island, which we have flagged and not fixed. Full numbers, caveats and the equity analysis: `docs/decisions.md` sections 7 and 10.
+Model notebook on the VM, averaged over two real days (the heat wave and 2022-10-12): static 76.4%, scheduled (historical demand, no ML) 85.1%, forecast 84.8%, oracle 86.3% of critical calls within 8 minutes. Be clear about what this means: positioning by expected demand is what helps (+8.7 points over the static layout); **our ML forecast is level with a schedule built from history on replayed coverage** (slightly better on the 90th-percentile response and at 370 units), and its accuracy gain over the historical average is small (5-7% lower Poisson deviance, 0-1.6% lower MAE). Weather adds almost nothing to the forecast. Staten Island does worse under the dynamic policy on two of three runs, which we have flagged and not fixed. Full numbers, caveats and the equity analysis: `docs/decisions.md` sections 7 and 10.
 
 ## Status (honest)
 **Built and tested (33 automated tests pass):** the data pipeline, forecaster, risk index, positioning and dispatch policy, replay with four policies, street routing, the demo, the accelerator benchmark. **Not built yet:** the light-unit replay model (speed, no hospital trip, stays until the ambulance arrives) and the fleet-size sweep for it, so today's replay uses a generic ambulance-like fleet; travel times inside the policy's decisions are a placeholder (the real street routes are only displayed); the Granite briefing on the VM. All response times are modelled from an assumed fleet size, scene and hospital times, traffic and travel times; only the difference between policies is meaningful. No outcome data exists, so any "lives saved" figure would be an illustration. See `docs/decisions.md` section 14.
@@ -63,7 +63,7 @@ Averaged over two real days (heat wave and an October day) in the model notebook
 - The notebooks (data build, training, replay) and the demo run on an IBM LinuxONE VM (s390x, z17 generation, 3 CPUs, 8.4 GB RAM), with memory-lean code (about 1.9 GB per year of data) because of that limit.
 - The on-chip AI accelerator (`nnpa`, zDNN) was tested through Snap ML and benchmarked against CPU LightGBM; the result and the reasoning are documented rather than assumed.
 - Models are saved as portable LightGBM text files (pickles are not portable between x86 and s390x).
-- VM output and the screenshots still to capture: `docs/screenshot_examples.md`.
+- VM output and screenshots: `docs/screenshot_examples.md`.
 
 ## Run it
 ```bash
@@ -93,7 +93,7 @@ To view the demo from the VM, run `npm run dev` there and tunnel the port: `ssh 
 | Path | What it is |
 |---|---|
 | `docs/decisions.md` | The single record: problem evidence, decisions, data, model results, policy and replay, demo, platform notes, assumptions, open items |
-| `docs/screenshot_examples.md`, `docs/screenshots/` | Evidence: demo screenshots, test and export runs, verbatim VM output, and the list of VM screenshots still to take |
+| `docs/screenshot_examples.md`, `docs/screenshots/` | Evidence: demo screenshots, test and export runs, VM screenshots and verbatim VM output |
 | `notebooks/DarraghC.ipynb`, `HarryRowlands.ipynb` | Data pipeline, forecaster, replay, hand-off export (the two notebooks that matter) |
 | `notebooks/routing_policy.py`, `ems_replay.py`, `street_routing.py`, `demo_policy.py` | Positioning and dispatch policy, replay, OSRM routing, synthetic sanity check |
 | `src/grease/forecast/`, `risk.py`, `data/` | Forecaster (features, LightGBM, baselines, evaluation, zone aggregation, export), risk index, data helpers. `sim/`, `optimize/`, `travel/`, `dashboard/` are early skeletons superseded by the notebook-side code |

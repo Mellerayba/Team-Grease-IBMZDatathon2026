@@ -37,9 +37,9 @@ Status key: **Decided** (team agreed) · **Proposed** (recommended default, not 
 - IBM Z accelerator tested and benchmarked on the VM; a measured negative result, reported as such. Section 13.
 - 33 automated tests pass (`PYTHONPATH=src python3 -m pytest tests`).
 
-**Headline result (modelled, not measured).** On the 2022-07-19 heat-wave day, 330 units, real incidents: critical calls reached within 8 minutes 82.3% with a fixed layout, **91.2% with model-guided positioning**, 93.4% with perfect foresight. Most of the gain comes from positioning by expected demand at all; our ML forecast adds a little over a historical-average schedule (see section 10 for the honest breakdown).
+**Headline result (modelled, not measured).** On the 2022-07-19 heat-wave day, 330 units, real incidents: critical calls reached within 8 minutes 82.3% with a fixed layout, **91.2% with model-guided positioning**, 93.4% with perfect foresight. Most of the gain comes from positioning by expected demand at all; in the two-day notebook run our ML forecast is level with a historical-average schedule (84.8% vs 85.1%), so we do not claim the forecast itself adds coverage (section 10).
 
-**Not built / not yet evidenced:** the light-unit (e-bike) replay model and the fleet-size sweep for them; real-time travel times in the decisions (they use a placeholder matrix); the Granite briefing run on the VM; completion of the two mandatory labs; VM screenshots beyond the pasted terminal output. Section 14.
+**Not built / not yet evidenced:** the light-unit (e-bike) replay model and the fleet-size sweep for them; real-time travel times in the decisions (they use a placeholder matrix); the Granite briefing run on the VM. Section 14.
 
 ---
 
@@ -95,7 +95,7 @@ In New York City the first minutes of a critical emergency decide whether someon
 - Project title must contain the team name: `Team Grease_IBM Z Datathon 2026 Project`.
 - Video of at most 3 minutes: problem, data, solution and how it uses IBM Z (show the LinuxONE instance and the model).
 - Code repository link; credit open-source libraries (README); event code `SSF2026`.
-- Both provided AI/ML labs (hybrid AI; predictive and generative) must be completed first. **Completion not yet confirmed.**
+- Both provided AI/ML labs (hybrid AI; predictive and generative) must be completed first.
 - Screenshots as evidence of LinuxONE capabilities (containers, security, scalability, compute): `screenshot_examples.md`.
 - Must be built within the hack window; optional flowchart and prototype.
 
@@ -168,7 +168,7 @@ notebooks/HarryRowlands.ipynb   EMS incidents (API -> notebooks/ems_raw/), panel
 
 **The big table (`full`, built in `HarryRowlands.ipynb` after the lag features):** `panel` (zipcode × 30-minute `bucket`, `y` = incidents, lags, time features) plus weather and calendar on `bucket` (`temp_c, feels_like_c, humidity_pct, precip_mm, is_raining, rain_3h_mm, rain_24h_mm, wind_kmh, cloud_pct, temp_max_24h_c, is_hot, is_heat_stress, is_cold`, holiday flags), zone context through `zipcode → zone` (`zone, borough, lon, lat, pop_est, asthma_rate_per_10k, dist_nearest_hospital_km, n_hospitals, n_firehouses`, Census fields), and `eval_is_heat_day` / `eval_is_heavy_rain_day` (**slice results only, never model inputs**). The model uses an **explicit feature list** (`FEATURE_GROUPS`, `src/grease/forecast/features.py`), so adding columns never changes the model by accident. For a model that predicts `h` buckets ahead, weather must use only what is known at forecast time.
 
-**Memory.** The notebook streams the EMS files one year at a time, attaches only the columns the chosen features need, and trains all 8 models from one shared 32-bit dataset. Measured peak for one year of data: 1.9 GB (it was 4.1 GB before this was optimised); two years build the panel in 6 s and 1.6 GB on the VM. Extrapolated, not measured: about 6 GB for 4 years and 8-11 GB for all of 2016-2022. Set `EMS_YEARS` and the matching `TRAIN_START` / `VAL_START` / `TEST_START` in the settings cell to use fewer years. A kernel that dies mid-run is almost certainly out of memory.
+**Memory.** The notebook streams the EMS files one year at a time, attaches only the columns the chosen features need, and trains all 8 models from one shared 32-bit dataset. Measured peak for one year of data: 1.9 GB (it was 4.1 GB before this was optimised); two years (3,074,985 incidents) build the panel in 3 s, hold 0.6 GB and peak at 1.0 GB on the VM (current session; the first measurement was 6 s and 1.6 GB). Extrapolated, not measured: about 6 GB for 4 years and 8-11 GB for all of 2016-2022. Set `EMS_YEARS` and the matching `TRAIN_START` / `VAL_START` / `TEST_START` in the settings cell to use fewer years. A kernel that dies mid-run is almost certainly out of memory.
 
 **Data assumptions:** zone = MODZCTA (99.9% of EMS incidents with a ZIP map to a zone); weather in local time (the CSV originally in the repo was UTC and blank for Oct 16 and Oct 20-25 2022); borough of a zone is the community district containing its centroid; no ambulance location or fleet data is public, so fleet size and home posts are assumptions; locations are area-level only; FDNY "Medical Emergencies" covers all first responders, so it is only a rough benchmark; asthma rates are borough-level; the health survey is citywide only.
 
@@ -208,6 +208,8 @@ Findings:
 - **Hand-off table written:** 3,101,040 rows, 177 zones, 24 columns (Appendix A).
 
 Run 1 for comparison (no level features): MAE gain 0.4 / 0.9 / 1.2 / 1.3% and bias 0.94 at 30 min / 1 / 2 / 3 h.
+
+**Evidence:** the run-2 numbers above were reproduced on the LinuxONE VM and screenshotted (`docs/screenshots/vm-08` to `vm-12`, described in `screenshot_examples.md`): training rows 3,091,128 per model, early-stopping iterations 268-413, test 4,134,720 rows, and the MAE, deviance and bias tables match the figures here (for example all-rows MAE 0.3914 / 0.5689 / 0.8186 / 1.0161 and bias 0.961 / 0.961 / 0.958 / 0.958).
 
 ### Previous model (original, replaced)
 Predicted incidents in the *same* bucket from lags (one-step ahead only), all columns of `panel` as features, 60 / 15 / 25 percent split by time fraction, and a baseline that predicted zero for some cells. Its saved results came from a 33-day 2005 sample and should not be quoted. Limitations L1-L7 below are what the rewrite fixes.
@@ -313,17 +315,34 @@ No public data says how many units NYC fields or where they stand. About 4,600 c
 ### Street routing (`street_routing.py`)
 OSMnx cannot be installed on the LinuxONE VM (it needs shapely, which has no s390x build, and the GEOS library is missing), so routes come from a public OSRM server: about 0.2 s per route, only `requests` needed, cached on disk (`notebooks/data/raw/route_cache.json`), a flagged straight-line fallback, OSMnx used only if present, and a bike profile for light units (bike times about 2-3× the car times on the trips tested; the speed is an assumption to check). It is used to show the real route and time of each move the policy recommends; **the policy still decides using the placeholder matrix (haversine × 1.35 at 30 km/h)**.
 
-How far off is the placeholder? Five test trips, OSRM car time against our placeholder: short Bronx hop 3.9 vs 5.6 min, Bronx to East Harlem 13.4 vs 14.0, Queens to Midtown 10.7 vs 13.4, Brooklyn to East Harlem 30.9 vs 39.3, Staten Island to Brooklyn 30.4 vs 43.0. So the placeholder is roughly 4-30% too slow against OSRM; against OSMnx free-flow speed limits (no signals) it was about 40-60% too slow, which overstates it. The truth for an ambulance with a siren in traffic lies somewhere in this range. The earlier proof of concept (`notebooks/Mapping.ipynb`) computed one Manhattan route (Times Square to Washington Square Park: 5.2 minutes free-flow) with OSMnx; it was superseded by the OSRM router.
+How far off is the placeholder? Five test trips, OSRM car time against our placeholder: short Bronx hop 3.9 vs 5.6 min, Bronx to East Harlem 13.4 vs 14.0, Queens to Midtown 10.7 vs 13.4, Brooklyn to East Harlem 30.9 vs 39.3, Staten Island to Brooklyn 30.4 vs 43.0. So the placeholder is roughly 4-30% too slow against OSRM on those trips; on the six highest-gain moves of the 2022-07-19 forecast run (OSRM called from the VM, `vm-07`) it was 30-115% too slow (12.5 vs 7.5 min, 13.4 vs 9.1 twice, 16.4 vs 9.8, 22.3 vs 10.4, 11.9 vs 9.2); against OSMnx free-flow speed limits (no signals) it was about 40-60% too slow, which overstates it. The truth for an ambulance with a siren in traffic lies somewhere in this range. The earlier proof of concept (`notebooks/Mapping.ipynb`) computed one Manhattan route (Times Square to Washington Square Park: 5.2 minutes free-flow) with OSMnx; it was superseded by the OSRM router.
 
 ### Results (all modelled, none measured)
-Notebook run, two real 2022 days (2022-07-19 heat wave and 2022-10-12), 330 units, ZIP-level, averages of both days:
+Model notebook (`HarryRowlands.ipynb`), run on the LinuxONE VM (screenshots `vm-04` to `vm-06`), ZIP level, 330 units, real 2022 incidents. Two replay days (2022-07-19 heat wave and 2022-10-12), average of both:
 
-| Policy | Critical calls reached in 8 min | 90th-percentile response (min) |
-|---|---|---|
-| Static layout | 76.4% | 17.1 |
-| Scheduled (historical demand) | 84.4% | 12.7 |
-| Forecast (our model) | 84.9% | 12.5 |
-| Oracle (perfect foresight) | 86.2% | 11.6 |
+| Policy | Critical calls reached in 8 min | Critical mean (min) | Critical 90th pct (min) | All calls mean (min) | Moves (avg per day) |
+|---|---|---|---|---|---|
+| Static layout | 76.40% | 7.82 | 17.06 | 9.04 | 0 |
+| Scheduled (historical demand, no ML) | **85.14%** | 6.32 | 12.08 | 7.08 | 2,038 |
+| Forecast (our model) | 84.76% | 6.35 | **11.83** | 7.10 | 2,049 |
+| Oracle (perfect foresight) | 86.32% | 6.35 | 12.77 | 7.26 | 1,989 |
+
+By day (critical calls within 8 min; incidents after dropping calls whose ZIP has no zone: 4,704 and 4,575):
+
+| Day | Static | Scheduled | Forecast | Oracle |
+|---|---|---|---|---|
+| 2022-07-19 (heat wave) | 81.85% | 91.96% | 91.67% | 93.85% |
+| 2022-10-12 | 70.95% | 78.31% | 77.84% | 78.79% |
+
+Critical calls within 8 minutes by borough (static / scheduled / forecast / oracle): 2022-07-19: Bronx 80.7 / 91.2 / 90.5 / 92.2; Brooklyn 81.3 / 91.9 / 91.4 / 94.3; Manhattan 82.5 / 93.9 / 93.7 / 94.4; Queens 79.3 / 92.1 / 91.8 / 95.3; **Staten Island 97.7 / 86.0 / 88.4 / 90.7**. 2022-10-12: Bronx 75.2 / 81.2 / 80.1 / 81.2; Brooklyn 70.5 / 77.0 / 77.9 / 74.4; Manhattan 73.0 / 81.1 / 81.9 / 83.8; Queens 66.4 / 76.2 / 73.2 / 78.0; Staten Island 58.8 / 63.7 / 63.7 / 66.2.
+
+**Fleet-size sensitivity** (2022-07-19, critical calls within 8 min), the assumption that matters most:
+
+| Units | Static | Scheduled | Forecast | Oracle |
+|---|---|---|---|---|
+| 300 | 77.5% | 90.0% | 89.6% | 90.6% |
+| 330 | 81.8% | 92.0% | 91.7% | 93.8% |
+| 370 | 87.0% | 93.7% | 94.4% | 94.7% |
 
 Demo export (`scripts/export_demo.py`), 2022-07-19 only, zone level (178 zones, real hospital sites), 330 units, full day of 4,694 incidents:
 
@@ -333,11 +352,13 @@ Demo export (`scripts/export_demo.py`), 2022-07-19 only, zone level (178 zones, 
 | Model-guided (forecast) | 91.2% | 4.41 | 7.76 | 4.50 | 2,167 |
 | Oracle | 93.4% | 4.26 | 7.39 | 4.53 | 2,112 |
 
-Critical calls within 8 minutes by borough, same run: Bronx 80.8 → 89.6 (oracle 92.5); Brooklyn 81.8 → 93.8 (94.4); Manhattan 80.4 → 91.4 (95.3); Queens 83.6 → 89.2 (92.1); **Staten Island 94.6 → 89.2 (87.1)**. The two tables differ because of the day, the spatial level (a ZIP-level check of the static layout on 2022-07-19 gave 80.8% against 82.3% at zone level) and the averaging; compare policies within one table, not across.
+Critical calls within 8 minutes by borough, demo export run: Bronx 80.8 → 89.6 (oracle 92.5); Brooklyn 81.8 → 93.8 (94.4); Manhattan 80.4 → 91.4 (95.3); Queens 83.6 → 89.2 (92.1); **Staten Island 94.6 → 89.2 (87.1)**. The zone-level export and the ZIP-level notebook agree closely on the same day (static 82.3% vs 81.85%, forecast 91.2% vs 91.67%, oracle 93.4% vs 93.85%); the two-day average is lower because 2022-10-12 is a harder day. Compare policies within one table, not across.
 
 **Reading it honestly**
-- Most of the gain comes from positioning by expected demand at all (static → scheduled is +8 points on average); our ML forecast adds only about half a point over the historical schedule, consistent with the forecast scoring in section 7 (it is mostly last week's level times the usual daily shape). The gain held at 300 and 370 units.
-- **Equity flag:** the dynamic policies did worse than static in Staten Island on every day tested (97.7% → 89.5% on one day, 58.8% → 57.5% on the other; 94.6 → 89.2 in the demo day). Units are drawn toward dense boroughs. This needs a fix (a larger floor for isolated boroughs) or an explicit statement; the equity floor of one unit per borough is not enough.
+- **Most of the gain comes from positioning by expected demand at all** (static → scheduled is +8.7 points on average, +7 to +10 on each day). **Our ML forecast does not beat a schedule built from history on critical coverage in this run** (84.76% vs 85.14% on average, 0.3-0.5 points below on both days, which is within the day-to-day noise); it is slightly better on the 90th-percentile response (11.83 vs 12.08 min) and at 370 units (94.4% vs 93.7%). This matches the forecast scoring in section 7 (the forecast is mostly last week's level times the usual daily shape, 0-1.6% lower MAE than the historical mean). The honest claim is that dynamic positioning works and that forecast accuracy is not yet what limits it; the forecast's value is that it adapts to surges a fixed schedule cannot (to be shown on heat days, where the scheduled policy is also close).
+- **Forecast vs oracle:** the gap is 1.6 points on average (2.2 on 2022-07-19, 0.9 on 2022-10-12), so a perfect forecaster would add little too.
+- **The fleet-size curve is steep:** every extra 30-40 units adds 4-5 points for the static layout and 2-3 for the dynamic ones, and the static layout at 370 units (87.0%) is still below the dynamic policies at 300 (about 90%). This is the shape the "how many units should the city buy" answer will come from.
+- **Equity flag (mixed):** Staten Island does worse under the dynamic policies on 2022-07-19 (97.7% static → 88.4% forecast) and in the demo run (94.6 → 89.2), but better on 2022-10-12 (58.8 → 63.7); the static layout puts a lot of capacity there on the easy day. Units are drawn toward dense boroughs. This needs a fix (a larger floor for isolated boroughs) or an explicit statement; the equity floor of one unit per borough is not enough.
 - Moves in the demo window are mostly freed units being sent to a staging zone ("back into service") rather than idle units being relocated (2 true relocations in the 6-hour window), because of the minimum-gain threshold and caps.
 - Response times are modelled from an assumed fleet, scene and hospital times, traffic, and the placeholder travel matrix. **Only the difference between policies is meaningful.**
 
@@ -391,8 +412,8 @@ A React 19 + TypeScript + Vite + Tailwind + React-Leaflet app in `pulsenyc-sourc
 
 **What it shows**
 - **Zones shaded by the model:** ZIP-zone polygons coloured by the model's risk index, the forecast calls for the next hour, or what actually happened; a new forecast lands every 30 minutes and the shading changes with it.
-- **Live units**, coloured by what they are doing (available, moving to a new post, responding, on scene, to hospital, at hospital).
-- **Where units go after a decision:** dashed cyan street routes (real OSRM routes) with a ring at the destination, and a log of each move with its reason.
+- **Live units**, drawn as flat squares coloured by what they are doing (available, moving to a new post, responding, on scene, to hospital, at hospital); hospitals are white squares and calls are diamonds. The look follows the pitch deck: navy, signal red, gold, Oswald headings.
+- **Where units go after a decision:** dashed navy street routes (real OSRM routes) with a gold square at the destination, and a log of each move with its reason.
 - **Calls coming in:** a dot at the moment of the call (dark red until a unit is assigned, orange while one is en route), removed when a unit arrives; a live feed and counts.
 - **Compare view:** static layout and model-guided fleet side by side on the same calls, with running critical-call response metrics, a "units in the highest-risk zones" table (static vs model) and the full-day result including the oracle.
 
@@ -427,9 +448,12 @@ What we know, and where it comes from:
 | 63 leaves x 100 trees | 100,000 | 655 | 783 | 240 |
 
   The accelerator is 0.26-0.57x the best LightGBM speed in every cell (also slower at 1 thread); Snap ML's own CPU path is 12-25% faster than LightGBM. Per-call latency for a live cycle of 256 rows is 0.3-0.7 ms on every engine, so inference speed is not a bottleneck for us.
+- **Repeat run, current session (`vm-02`, `vm-03`):** the same pattern. Synthetic model: accelerator 0.4× LightGBM, `compress_trees` (a CPU format) 1.1×; our real model: accelerator 0.5×, `compress_trees` 1.2×, predictions still mismatched (max difference 4.6). Benchmark ratios (accelerator ÷ best LightGBM): 15 leaves 0.56 / 0.45 / 0.34 and 63 leaves 0.69 / 0.56 / 0.35 at batches of 256 / 4,096 / 100,000, so the best case is 0.69× (the first run gave 0.57×). The accelerator is slower than the CPU in every cell, in both runs.
 - **Accuracy caveat:** for the 63-leaf model the accelerator's output differed from LightGBM by up to 0.049 in the raw score (about 5%), against 1e-8 for the 15-leaf model. My hypothesis (untested) is that the accelerator computes in 16-bit precision so rows near a split threshold can take the wrong branch.
 - **Our real forecaster cannot be moved to Snap ML as it is:** it uses categorical features (zipcode, borough); the import succeeds without an error but the predictions are wrong (max difference 4.6 in the raw score). Using Snap ML would need a numeric-only retrain, and the gain (at most about 20% on a sub-second job) does not justify it.
 - **Conclusion:** keep CPU LightGBM for production scoring. In the pitch: the accelerator is present and drivable on LinuxONE, we benchmarked it fairly against the CPU, and chose the faster and more accurate CPU path. Not claimed: any speed-up from the accelerator. The neural-network route (IBM Z Deep Learning Compiler) is the accelerator's real target and would only apply if we built a neural forecaster.
+
+**Also measured in the current session (`vm-01`, `vm-03`):** the pipeline memory test (2021-2022, 3,074,985 incidents → an 8,269,440-row panel, 21 columns) took 3 s for the panel and 3 s for the history features, held 0.6 GB and peaked at **1.0 GB**; `nproc` = 3; `MemTotal` 8.2 GB with only **2.7 GB available** at that moment (other kernels hold the rest); TensorFlow 2.18.1 and Snap ML 1.17.2 are installed. **All 33 tests pass on the VM (s390x), in 1.6 s.** `lscpu` reports Big Endian, machine type 9175, flags including `vxe2` and `nnpa`, and **z/VM 7.3.0** as the hypervisor.
 
 **What the VM is used for.** Training, scoring, the replay and the demo all run on the LinuxONE instance (the saved models are portable text files; pickles are not portable between x86 and s390x). The kernel died twice early on, caused by memory (the default then loaded seven years of data); the memory rewrite and the 2021-2022 default fixed it (section 6). Not run on the VM: the Granite briefing (needs about 8 GB free; it skips itself), the demo export (shapely has no s390x wheel), OSMnx.
 
@@ -454,7 +478,7 @@ What we know, and where it comes from:
 ### What we can claim
 - A forecaster that beats every baseline on Poisson deviance at every horizon on a held-out year (5-7% lower deviance), and is calibrated to about 4% low.
 - Positioning idle units by expected demand, with an equity floor, improves modelled critical-call response against a fixed layout across fleet sizes and days (about 82% → 91% in 8 minutes on the demo day, 76% → 85% averaged over two days).
-- The model's forecast is a small improvement over a schedule built from history alone; most of the value is in positioning.
+- The model's forecast beats a schedule built from history on Poisson deviance (5-7%), but **not on replayed critical-call coverage** (84.8% vs 85.1%); most of the value is in positioning.
 - The IBM Z accelerator is present, drivable, and was benchmarked fairly (section 13).
 
 ### What we cannot claim
@@ -463,7 +487,7 @@ What we know, and where it comes from:
 - That AI "predicts the weather" or does "AI-driven path optimization": the policy is an optimiser fed by a forecast; routing is OSRM.
 - Any speed-up from the IBM Z accelerator.
 - That the light units work as modelled: the light-unit model is not built.
-- Equity improvements: Staten Island does worse under the dynamic policy (section 10).
+- Equity improvements: Staten Island does worse under the dynamic policy on two of the three runs (section 10).
 
 ### Pitch and README claims to reconcile before submission
 - The deck notebook (`notebooks/Grease_DISPATCH_Pitch_Deck (1).ipynb`, `docs/Grease DISPATCH Pitch Deck.pptx`) lists "weather related incident prediction", "AI-driven path optimization", theme "Wildcard" and a "mobile clinic fleet"; these conflict with the evidence above and with D13.
@@ -474,7 +498,7 @@ What we know, and where it comes from:
 1. Build the light-unit replay (speed, no hospital leg, stays until the ambulance arrives, shorter target) and the fleet-size sweep, then re-derive the headline.
 2. Fix or explain the Staten Island equity gap.
 3. Re-draw service times from the incident extract (real jobs average 68 min for critical calls) and re-check the fleet calibration with real travel times; pass a street-route travel matrix into the policy (`tt_base`).
-4. Capture VM screenshots (list in `screenshot_examples.md`); confirm the two mandatory labs are completed; run the Granite briefing on the VM (it skips itself under 8 GB free).
+4. Run the Granite briefing on the VM (it skips itself under 8 GB free).
 5. Record the 3-minute video and reconcile the deck.
 6. Possible: re-fetch EMS with call type and stage durations for service times and cardiac-arrest share; offset model (F17) if the 4% level gap matters; F5-F7 ablations; F10 COVID year.
 
@@ -492,12 +516,13 @@ What we know, and where it comes from:
 | 2026-10-17 | Model rewritten per D8-D10 and M1-M10 (code in `src/grease/forecast/`, notebook updated, 10 tests pass). Smoke-tested on 2017 only; real run pending the complete EMS download |
 | 2026-10-17 | Memory rewrite after the VM kernel died (out of memory at the linking cell): EMS streamed one year at a time, only the needed columns are linked (built from small lookups), targets computed one at a time, 8 models share one float32 dataset. Measured peak for one year of data fell from 4.1 GB to 1.9 GB; 15 tests pass |
 | 2026-10-17 | Added D11 and section 6 (platform notes) and `scripts/vm_check.py` after the VM kernel died again at the panel cell |
-| 2026-10-17 | VM measured: 8.4 GB RAM (5.6 GB free), 3 CPUs, IBM z17-generation LinuxONE with the `nnpa` AI-accelerator flag exposed; two years of data build the panel in 6 s and 1.6 GB. The kernel died because the notebook still defaulted to all seven years, so the repo default is now 2021-2022 (train Jan-Sep 2021, validate Q4 2021, test 2022). The full 2016-2022 history needs a bigger machine, so F11 / F10 experiments over many years are limited on the VM |
+| 2026-10-17 | VM measured: 8.4 GB RAM (5.6 GB free), 3 CPUs, IBM z17-generation LinuxONE with the `nnpa` AI-accelerator flag exposed; two years of data build the panel in 3 s and 0.6 GB (peak 1.0 GB) in the latest measurement. The kernel died because the notebook still defaulted to all seven years, so the repo default is now 2021-2022 (train Jan-Sep 2021, validate Q4 2021, test 2022). The full 2016-2022 history needs a bigger machine, so F11 / F10 experiments over many years are limited on the VM |
 | 2026-10-17 | First real run recorded (section 7). Added 7-day / 28-day level features (F16), the zone-level hand-off export and the hand-off format (M11, Appendix A), the four-policy comparison with an oracle (D12), and F15-F17 |
 | 2026-10-17 | Run 2 (with level features) recorded, including calibration, feature importance (roll_7d 71%, weather about 1% in total) and the risk snapshot. Corrected an earlier claim: the surge baseline is worse on MAE but not on deviance |
 | 2026-10-17 | Reframed the product (D13, D14): lightweight first-response units as a second fleet, headline question = how many units to buy. Added section 7 (assumptions, required model changes, replay results, routing review). D1 revised |
 | 2026-10-17 | Accelerator tested on the VM and benchmarked fairly: works but slower than CPU LightGBM; D11 decided, results in section 6 |
 | 2026-10-17 | Demo wired to the real model run (`scripts/export_demo.py`, `ems_replay.run_replay(trace=True)`, React `replay.ts` / `DemoMap.tsx`): the browser replays real 2022-07-19 calls, the forecaster's per-cycle zone output (risk index shading) and the policy's moves on real street routes; the synthetic in-browser engine is no longer used. Zone-level replay (178 zones, hospitals at real sites) gives, for 14:00-20:00 and the full day at 330 units: critical calls within 8 min static 82.3% vs forecast-guided 91.2% vs oracle 93.4% (modelled times; notebook ZIP-level numbers can differ slightly) |
+| 2026-10-17 | VM screenshots added (`docs/screenshots/vm-01` to `vm-12`): platform and memory check, accelerator verdict and a repeat benchmark, 33 tests passing on s390x, the forecaster trained and scored on the VM, the replay run on the VM. The replay results were corrected to the VM run: scheduled (85.14%) is level with forecast (84.76%) on critical coverage, and Staten Island is mixed rather than uniformly worse |
 | 2026-10-17 | Consolidated every note (plan, data, research, hand-off, non-technical timeline, original plan) into this file; README rewritten; screenshots and VM output collected in `screenshot_examples.md` |
 
 ---

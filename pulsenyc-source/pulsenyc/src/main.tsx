@@ -2,12 +2,16 @@ import {useEffect, useMemo, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import 'leaflet/dist/leaflet.css';
 import './style.css';
-import {DemoMap, PHASE_COLOR, PHASE_LABEL} from './DemoMap';
+import {DemoMap, PHASE_COLOR, PHASE_LABEL, CALL_WAITING, CALL_EN_ROUTE} from './DemoMap';
 import {Demo, ZonesGeo, Metric, Phase, loadDemo, unitView, callStats, cycleAt, hhmm} from './replay';
 
 type View = 'compare' | 'forecast' | 'static';
 const SPEEDS = [1, 2, 4, 8];                              // simulated minutes per real second
 const f1 = (n: number) => n.toFixed(1);
+const PHASES: Phase[] = ['idle', 'reposition', 'respond', 'scene', 'transport', 'hospital', 'home'];
+
+/** A small flat colour square: the legend and status marker used throughout (no circles, no emoji). */
+const Sq = ({c, diamond}: {c: string; diamond?: boolean}) => <span className="sq" style={{background: c, transform: diamond ? 'rotate(45deg) scale(.85)' : undefined}} />;
 
 function useTicker(demo: Demo | null) {
   const q = new URLSearchParams(location.search);           // ?t=120 opens the replay at minute 120 (handy for screenshots)
@@ -60,8 +64,8 @@ function App() {
     return {stat, model, us, um, cur, since, hot};
   }, [demo, tq]);
 
-  if (err) return <div className="min-h-screen bg-[#07101e] text-slate-100 p-8"><h1 className="text-xl font-bold mb-2">Demo data missing</h1><p className="text-sm text-slate-400">{err}</p></div>;
-  if (!demo || !data || !info) return <div className="min-h-screen bg-[#07101e] text-slate-300 p-8">Loading replay…</div>;
+  if (err) return <div className="min-h-screen bg-paper p-8"><h1 className="font-display text-2xl uppercase mb-2">Demo data missing</h1><p className="text-sm text-ink">{err}</p></div>;
+  if (!demo || !data || !info) return <div className="min-h-screen bg-paper p-8 text-ink">Loading replay…</div>;
 
   const run = () => { setT(0); setView('compare'); setPlaying(true); };
   const mp = demo.policies.forecast, M = info.model, S = info.stat;
@@ -78,129 +82,146 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#07101e] text-slate-100 p-3 md:p-5">
-      <header className="flex flex-wrap justify-between items-center gap-3 border-b border-slate-700 pb-4 mb-4">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">✚ PROJECT <span className="text-cyan-400">DISPATCH</span> <span className="text-slate-500 font-normal text-sm">/ COMMAND</span></h1>
-          <p className="text-[10px] tracking-[.2em] text-slate-400">FORECAST-DRIVEN EMS UNIT POSITIONING · NEW YORK CITY</p>
-        </div>
-        <div className="flex gap-3 items-center flex-wrap">
-          <span className="text-emerald-300 bg-emerald-900/30 rounded px-2 py-1 text-xs">REAL CALLS · {date.toUpperCase()}</span>
-          <span className="text-amber-300 bg-amber-900/30 rounded px-2 py-1 text-xs">MODELLED RESPONSE TIMES</span>
-          <span className="text-xs text-slate-400">{playing ? '● LIVE REPLAY' : 'PAUSED'}</span>
-          <span className="font-mono text-lg">{clock}</span>
+    <div className="min-h-screen bg-paper text-navy">
+      <header className="bg-navy border-t-[6px] border-signal text-white px-4 md:px-6 py-4">
+        <div className="flex flex-wrap justify-between items-end gap-4">
+          <div>
+            <p className="text-gold text-[11px] tracking-wide">IBM Z Datathon: Theme 3 - Wildcard</p>
+            <h1 className="font-display font-bold text-4xl md:text-5xl uppercase leading-none tracking-wide mt-1">Project Dispatch</h1>
+            <p className="text-sm text-slate-300 mt-1">A solution to New York EMS response times.</p>
+          </div>
+          <div className="flex gap-6 items-end flex-wrap">
+            <div className="text-xs leading-5"><div><Sq c="#cc0000" />Real calls: {date}</div><div><Sq c="#ffcc00" />Response times are modelled</div></div>
+            <div className="text-right"><div className="text-[11px] text-slate-400 uppercase tracking-wider">{playing ? 'Replay running' : 'Paused'}</div><div className="font-display text-4xl leading-none">{clock}</div></div>
+          </div>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[210px_minmax(0,1fr)_260px] gap-3">
-        <aside className="space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)_270px] gap-4 p-4 md:p-6">
+        <aside className="space-y-4">
           <section className="panel">
-            <h2 className="heading">REPLAY CONTROL</h2>
-            <button className="btn-primary w-full mb-2" onClick={run}>▶ RUN DEMO</button>
+            <h2 className="heading">Replay control</h2>
+            <button className="btn-primary w-full mb-2" onClick={run}>Run demo</button>
             <div className="flex gap-2">
-              <button className="btn flex-1" onClick={() => setPlaying(!playing)}>{playing ? 'Ⅱ Pause' : '▶ Play'}</button>
-              <button className="btn flex-1" onClick={() => { setPlaying(false); setT(0); }}>↻ Reset</button>
+              <button className="btn flex-1" onClick={() => setPlaying(!playing)}>{playing ? 'Pause' : 'Play'}</button>
+              <button className="btn flex-1" onClick={() => { setPlaying(false); setT(0); }}>Reset</button>
             </div>
-            <label className="field">Replay speed (minutes of city time per second)</label>
+            <label className="field">Speed: minutes of city time per second</label>
             <div className="grid grid-cols-4 gap-1">{SPEEDS.map(v => <button key={v} className={'btn !px-1 ' + (speed === v ? 'chosen' : '')} onClick={() => setSpeed(v)}>{v}×</button>)}</div>
-            <label className="field">Time {clock} ({Math.round(t)} / {demo.meta.minutes} min)</label>
-            <input className="w-full accent-cyan-400" type="range" min="0" max={demo.meta.minutes} step="1" value={Math.round(t)} onChange={e => setT(+e.target.value)} />
+            <label className="field">Time {clock} ({Math.round(t)} of {demo.meta.minutes} min)</label>
+            <input className="w-full" type="range" min="0" max={demo.meta.minutes} step="1" value={Math.round(t)} onChange={e => setT(+e.target.value)} />
           </section>
           <section className="panel">
-            <h2 className="heading">VIEW</h2>
-            <div className="grid grid-cols-3 gap-1">{([['compare', 'Compare'], ['forecast', 'Model'], ['static', 'Static']] as const).map(([v, l]) => <button key={v} className={'btn !px-1 text-[10px] ' + (view === v ? 'chosen' : '')} onClick={() => setView(v)}>{l}</button>)}</div>
+            <h2 className="heading">View</h2>
+            <div className="grid grid-cols-3 gap-1">{([['compare', 'Compare'], ['forecast', 'Model'], ['static', 'Static']] as const).map(([v, l]) => <button key={v} className={'btn !px-1 ' + (view === v ? 'chosen' : '')} onClick={() => setView(v)}>{l}</button>)}</div>
             <label className="field">Zone shading shows</label>
             <div className="grid grid-cols-1 gap-1">{([['risk', 'Model risk index'], ['forecast', 'Forecast calls, next hour'], ['actual', 'What actually happened']] as const).map(([v, l]) => <button key={v} className={'btn text-left ' + (metric === v ? 'chosen' : '')} onClick={() => setMetric(v)}>{l}</button>)}</div>
-            {([['Zone shading', zones, setZones], ['Destination lines', routes, setRoutes], ['Incoming calls', calls, setCalls], ['Coverage rings', cover, setCover]] as const).map(([label, val, set]) =>
-              <label key={label} className="flex justify-between mt-3 text-xs text-slate-300">{label}<input type="checkbox" checked={val} onChange={e => set(e.target.checked)} className="accent-cyan-400" /></label>)}
+            {([['Zone shading', zones, setZones], ['Destination lines', routes, setRoutes], ['Incoming calls', calls, setCalls], ['Coverage areas', cover, setCover]] as const).map(([label, val, set]) =>
+              <label key={label} className="flex justify-between mt-3 text-xs text-ink">{label}<input type="checkbox" checked={val} onChange={e => set(e.target.checked)} /></label>)}
           </section>
           <section className="panel">
-            <h2 className="heading">MODEL-GUIDED FLEET · {demo.meta.units} UNITS</h2>
-            {(['idle', 'reposition', 'respond', 'scene', 'transport', 'hospital', 'home'] as Phase[]).map(p => info.um.phases[p] || p === 'idle' ? <div key={p} className="flex justify-between py-0.5 text-xs"><span style={{color: PHASE_COLOR[p]}}>● {PHASE_LABEL[p]}</span><b>{info.um.phases[p]}</b></div> : null)}
-            <div className="flex justify-between py-0.5 text-xs mt-2 border-t border-slate-700 pt-2"><span className="text-rose-400">● Call waiting</span><span className="text-orange-400">● Unit on the way</span></div>
+            <h2 className="heading">Fleet: {demo.meta.units} units</h2>
+            {PHASES.map(p => info.um.phases[p] || p === 'idle' ? <div key={p} className="flex justify-between py-0.5 text-xs"><span><Sq c={PHASE_COLOR[p]} />{PHASE_LABEL[p]}</span><b>{info.um.phases[p]}</b></div> : null)}
+            <div className="text-xs mt-3 border-t border-rule pt-2 space-y-0.5">
+              <div><Sq c={CALL_WAITING} diamond />Call, no unit yet</div>
+              <div><Sq c={CALL_EN_ROUTE} diamond />Call, unit on the way</div>
+              <div><Sq c="#ffffff" />Hospital</div>
+            </div>
           </section>
         </aside>
 
-        <main className="min-w-0 space-y-3">
+        <main className="min-w-0 space-y-4">
           <section className="panel !p-0 overflow-hidden">
-            <div className="flex flex-wrap justify-between items-center p-3 border-b border-slate-700 gap-2">
-              <div>
-                <h2 className="font-bold">NYC Operations Map</h2>
-                <p className="muted">Forecast issued {hhmm(demo, info.cur.t)} · {info.since < 4 ? 'new forecast just landed' : `${Math.round(info.since)} min ago`} · refreshed every {demo.meta.cycle_min} min · shading: {metric === 'risk' ? 'model risk index' : metric === 'forecast' ? 'forecast calls next hour' : 'actual calls next hour'}</p>
-              </div>
+            <div className="p-4 border-b border-rule">
+              <h2 className="heading !mb-1">NYC operations map</h2>
+              <p className="muted">Forecast issued {hhmm(demo, info.cur.t)} · {info.since < 4 ? 'new forecast just landed' : `${Math.round(info.since)} min ago`} · refreshed every {demo.meta.cycle_min} min · shading: {metric === 'risk' ? 'model risk index' : metric === 'forecast' ? 'forecast calls next hour' : 'actual calls next hour'}</p>
             </div>
-            <div className={view === 'compare' ? 'grid grid-cols-1 md:grid-cols-2' : 'grid grid-cols-1'}>
-              {maps.map(p => <div key={p} className="relative min-w-0 border-r border-slate-700">
-                <div className="absolute top-3 left-12 z-[500] rounded bg-slate-950/90 border border-slate-700 px-3 py-2 text-xs font-semibold">{p === 'forecast' ? '✦ MODEL-GUIDED' : '◼ STATIC LAYOUT'}</div>
+            <div className={view === 'compare' ? 'grid grid-cols-1 md:grid-cols-2 gap-px bg-rule' : 'grid grid-cols-1'}>
+              {maps.map(p => <div key={p} className="relative min-w-0 bg-white">
+                <div className={'absolute top-3 left-12 z-[500] px-3 py-1.5 font-display uppercase tracking-wider text-sm ' + (p === 'forecast' ? 'bg-signal text-white' : 'bg-navy text-white')}>{p === 'forecast' ? 'Model-guided' : 'Static layout'}</div>
                 <DemoMap demo={demo} geo={data.geo} policy={p} t={t} metric={metric} showZones={zones} showRoutes={routes} showCalls={calls} showCoverage={cover} height={height} />
               </div>)}
             </div>
-            <div className="flex flex-wrap gap-4 p-3 text-[10px] text-slate-300">
-              {(['idle', 'reposition', 'respond', 'scene', 'transport', 'hospital'] as Phase[]).map(p => <span key={p}><span style={{color: PHASE_COLOR[p]}}>●</span> {PHASE_LABEL[p]}</span>)}
-              <span><span className="text-rose-500">●</span> Call (red = no unit yet)</span><span><span className="text-violet-300">●</span> Hospital</span><span><span className="text-orange-400">■</span> Zone: higher model risk</span>
+            <div className="flex flex-wrap gap-x-5 gap-y-1 p-3 text-[11px] text-ink border-t border-rule">
+              {(['idle', 'reposition', 'respond', 'scene', 'transport', 'hospital'] as Phase[]).map(p => <span key={p}><Sq c={PHASE_COLOR[p]} />{PHASE_LABEL[p]}</span>)}
+              <span><Sq c={CALL_WAITING} diamond />Call waiting</span><span><Sq c="#e9a15a" />Zone shading: higher risk</span>
             </div>
           </section>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {[['CRITICAL IN 8 MIN · STATIC', f1(S.critWithin) + '%'], ['CRITICAL IN 8 MIN · MODEL', f1(M.critWithin) + '%'], ['MEAN RESPONSE · STATIC', f1(S.mean) + ' min'], ['MEAN RESPONSE · MODEL', f1(M.mean) + ' min']].map(([n, v]) =>
-              <div key={n} className="panel"><div className="heading !mb-1">{n}</div><div className={'text-xl md:text-2xl font-bold tracking-tight ' + (n.includes('MODEL') ? 'text-cyan-300' : '')}>{v}</div></div>)}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white border border-rule p-5">
+              <h2 className="font-display uppercase text-lg tracking-wide text-slate-500">Static layout</h2>
+              <div className="flex items-baseline gap-6 mt-3">
+                <div><div className="font-display font-bold text-5xl text-signal leading-none">{f1(S.critWithin)}<span className="text-2xl">%</span></div><div className="muted mt-1">Critical calls reached within {demo.meta.target_min} min</div></div>
+                <div><div className="font-display font-bold text-4xl text-signal leading-none">{f1(S.mean)}<span className="text-lg"> MIN</span></div><div className="muted mt-1">Mean response</div></div>
+              </div>
+              <p className="text-xs text-slate-500 mt-4"><span className="text-signal font-bold">&times;</span> Fixed posts, reactive deployment.</p>
+            </div>
+            <div className="bg-navy text-white p-5">
+              <h2 className="font-display uppercase text-lg tracking-wide">Model-guided</h2>
+              <div className="flex items-baseline gap-6 mt-3">
+                <div><div className="font-display font-bold text-5xl text-amber leading-none">{f1(M.critWithin)}<span className="text-2xl">%</span></div><div className="text-[11px] text-slate-300 mt-1">Critical calls reached within {demo.meta.target_min} min</div></div>
+                <div><div className="font-display font-bold text-4xl text-amber leading-none">{f1(M.mean)}<span className="text-lg"> MIN</span></div><div className="text-[11px] text-slate-300 mt-1">Mean response</div></div>
+              </div>
+              <p className="text-xs text-slate-200 mt-4"><span className="text-gold font-bold">&#10003;</span> Units repositioned every {demo.meta.cycle_min} minutes from the forecast.</p>
+            </div>
           </div>
 
           <section className="panel">
-            <h2 className="heading">POLICY PERFORMANCE · SAME CALLS, SAME FLEET</h2>
-            <div className="grid grid-cols-4 gap-2 text-xs text-slate-400 border-b border-slate-700 pb-2"><span>Metric</span><span>Static</span><span className="text-cyan-300">Model-guided</span><span>Oracle (full day)</span></div>
+            <h2 className="heading">Policy performance: same calls, same fleet</h2>
+            <div className="grid grid-cols-4 gap-2 text-xs font-display uppercase tracking-wider text-slate-500 border-b border-rule pb-2"><span>Metric</span><span>Static</span><span className="text-signal">Model-guided</span><span>Oracle (full day)</span></div>
             {[
-              ['Critical within 8 min · so far', f1(S.critWithin) + '%', f1(M.critWithin) + '%', '—'],
-              ['90th percentile · so far', f1(S.p90) + ' min', f1(M.p90) + ' min', '—'],
-              ['Calls answered · so far', S.served, M.served, '—'],
-              ['Critical within 8 min · full day', f1(Number(summary['static']?.crit_within_target_pct)) + '%', f1(Number(summary['dynamic: forecast']?.crit_within_target_pct)) + '%', f1(Number(summary['dynamic: oracle']?.crit_within_target_pct)) + '%'],
-              ['90th percentile · full day', f1(Number(summary['static']?.crit_p90_min)) + ' min', f1(Number(summary['dynamic: forecast']?.crit_p90_min)) + ' min', f1(Number(summary['dynamic: oracle']?.crit_p90_min)) + ' min'],
-            ].map(([n, a, b, c]) => <div key={String(n)} className="grid grid-cols-4 gap-2 text-xs border-b border-slate-800 py-2"><span className="text-slate-400">{n}</span><b>{a}</b><b className="text-cyan-300">{b}</b><b className="text-slate-300">{c}</b></div>)}
+              ['Critical within 8 min, so far', f1(S.critWithin) + '%', f1(M.critWithin) + '%', '—'],
+              ['90th percentile, so far', f1(S.p90) + ' min', f1(M.p90) + ' min', '—'],
+              ['Calls answered, so far', S.served, M.served, '—'],
+              ['Critical within 8 min, full day', f1(Number(summary['static']?.crit_within_target_pct)) + '%', f1(Number(summary['dynamic: forecast']?.crit_within_target_pct)) + '%', f1(Number(summary['dynamic: oracle']?.crit_within_target_pct)) + '%'],
+              ['90th percentile, full day', f1(Number(summary['static']?.crit_p90_min)) + ' min', f1(Number(summary['dynamic: forecast']?.crit_p90_min)) + ' min', f1(Number(summary['dynamic: oracle']?.crit_p90_min)) + ' min'],
+            ].map(([n, a, b, c]) => <div key={String(n)} className="grid grid-cols-4 gap-2 text-xs border-b border-rule py-2"><span className="text-ink">{n}</span><b>{a}</b><b className="text-signal">{b}</b><b className="text-slate-600">{c}</b></div>)}
             <p className="muted mt-3">{demo.meta.note} The oracle is an upper bound that knows the next hour's real demand.</p>
           </section>
         </main>
 
-        <aside className="space-y-3">
+        <aside className="space-y-4">
           <section className="panel">
-            <h2 className="heading">INCOMING CALLS</h2>
+            <h2 className="heading">Incoming calls</h2>
             <div className="flex justify-between mb-3">
-              <div><div className="text-xl font-bold text-rose-400">{M.waiting}</div><div className="muted">Waiting</div></div>
-              <div><div className="text-xl font-bold text-amber-300">{M.enRoute}</div><div className="muted">Unit en route</div></div>
-              <div><div className="text-xl font-bold">{M.served}</div><div className="muted">Reached</div></div>
+              <div><div className="font-display font-bold text-3xl text-signal leading-none">{M.waiting}</div><div className="muted">Waiting</div></div>
+              <div><div className="font-display font-bold text-3xl text-amber leading-none">{M.enRoute}</div><div className="muted">Unit en route</div></div>
+              <div><div className="font-display font-bold text-3xl leading-none">{M.served}</div><div className="muted">Reached</div></div>
             </div>
             <div className="max-h-40 overflow-y-auto">{demo.calls.map((c, i) => ({c, i})).filter(x => x.c.t <= t).slice(-8).reverse().map(({c, i}) => {
-              const x = mp.calls[i]; const state = !x || x[0] > t ? 'waiting' : x[1] > t ? 'unit en route' : `reached in ${f1(x[1] - c.t)} min`;
-              return <div key={i} className="text-xs border-t border-slate-700 py-1.5 flex justify-between gap-2"><span>{c.acuity === 'c' ? '🔴' : '🟠'} {hhmm(demo, c.t)} {demo.zones[c.zone].borough.toLowerCase()} {c.zone}</span><span className={state === 'waiting' ? 'text-rose-300' : 'text-slate-400'}>{state}</span></div>;
+              const x = mp.calls[i]; const waiting = !x || x[0] > t; const state = waiting ? 'waiting' : x[1] > t ? 'unit en route' : `reached in ${f1(x[1] - c.t)} min`;
+              return <div key={i} className="text-xs border-t border-rule py-1.5 flex justify-between gap-2"><span><Sq c={waiting ? CALL_WAITING : CALL_EN_ROUTE} diamond />{hhmm(demo, c.t)} {demo.zones[c.zone].borough.toLowerCase()} {c.zone}{c.acuity === 'c' ? <b className="text-signal"> critical</b> : ''}</span><span className={waiting ? 'text-signal font-semibold' : 'text-slate-500'}>{state}</span></div>;
             })}</div>
           </section>
 
           <section className="panel">
-            <h2 className="heading">HIGHEST-RISK ZONES · NEXT HOUR</h2>
-            <div className="grid grid-cols-[1fr_44px_44px_44px] gap-1 text-[10px] text-slate-500 mb-1"><span>ZIP zone</span><span className="text-right">Risk</span><span className="text-right">Static</span><span className="text-right text-cyan-300">Model</span></div>
-            {info.hot.map(h => <div key={h.z} className="grid grid-cols-[1fr_44px_44px_44px] gap-1 text-xs py-1 border-t border-slate-800">
+            <h2 className="heading">Highest-risk zones, next hour</h2>
+            <div className="grid grid-cols-[1fr_40px_44px_44px] gap-1 text-[10px] font-display uppercase tracking-wider text-slate-500 mb-1"><span>ZIP zone</span><span className="text-right">Risk</span><span className="text-right">Static</span><span className="text-right text-signal">Model</span></div>
+            {info.hot.map(h => <div key={h.z} className="grid grid-cols-[1fr_40px_44px_44px] gap-1 text-xs py-1 border-t border-rule">
               <span title={demo.zones[h.z].label}>{h.z} <span className="text-slate-500 text-[10px]">{demo.zones[h.z].borough.slice(0, 3)}</span></span>
-              <b className="text-right text-orange-300">{h.risk.toFixed(0)}</b><span className="text-right">{info.us.counts[h.k]}</span><b className="text-right text-cyan-300">{info.um.counts[h.k]}</b></div>)}
-            <p className="muted mt-2">Units parked in (or driving to) each zone's area. The model moves units toward the zones it expects to be busy.</p>
+              <b className="text-right">{h.risk.toFixed(0)}</b><span className="text-right">{info.us.counts[h.k]}</span><b className="text-right text-signal">{info.um.counts[h.k]}</b></div>)}
+            <p className="muted mt-2">Units parked in, or driving to, each zone's area. The model moves units toward the zones it expects to be busy.</p>
           </section>
 
           <section className="panel">
-            <h2 className="heading">MODEL DECISIONS</h2>
+            <h2 className="heading">Model decisions</h2>
             <div className="max-h-64 overflow-y-auto space-y-2">{logRows.length ? logRows.map((m, i) => {
               const p = parse(mp.why[m.why]);
-              return <div key={i} className="border-l-2 border-cyan-600 pl-2 py-1 text-[11px] bg-slate-800/40">
-                <span className="text-cyan-300 font-mono">{hhmm(demo, m.t)}</span> <span className="text-slate-100">Unit {m.unit}</span>
-                {p ? <p className="text-slate-300">{p.kind}: {p.from} → {p.to} ({demo.zones[p.to]?.borough?.toLowerCase()}), {p.drive} min drive · +{p.gain} expected-call coverage</p> : <p className="text-slate-300">{mp.why[m.why]}</p>}
+              return <div key={i} className="quote text-[11px]">
+                <span className="font-display tracking-wider text-signal">{hhmm(demo, m.t)}</span> <span className="font-semibold">Unit {m.unit}</span>
+                {p ? <p className="text-ink">{p.kind}: {p.from} to {p.to} ({demo.zones[p.to]?.borough?.toLowerCase()}), {p.drive} min drive. Expected-call coverage +{p.gain}</p> : <p className="text-ink">{mp.why[m.why]}</p>}
               </div>;
-            }) : <p className="muted">Press RUN DEMO. Each move the model makes appears here with its reason.</p>}</div>
+            }) : <p className="muted">Press Run demo. Each move the model makes appears here with its reason.</p>}</div>
           </section>
 
           <section className="panel">
-            <h2 className="heading">HOW TO READ THIS</h2>
-            <p className="text-xs text-slate-400 leading-relaxed">Every call is a real 2022 NYC EMS incident. Every {demo.meta.cycle_min} minutes the LightGBM forecaster predicts calls per ZIP zone for the next hour; zones are shaded by that output, and the policy moves idle units toward the busiest, most vulnerable zones. Both maps replay the same calls with the same fleet. Response times are modelled (assumed fleet, scene and hospital times, traffic); only the difference between layouts is meaningful.</p>
+            <h2 className="heading">How to read this</h2>
+            <p className="text-xs text-ink leading-relaxed">Every call is a real 2022 NYC EMS incident. Every {demo.meta.cycle_min} minutes the LightGBM forecaster predicts calls per ZIP zone for the next hour; zones are shaded by that output, and the policy moves idle units toward the busiest, most vulnerable zones. Both maps replay the same calls with the same fleet. Response times are modelled (assumed fleet, scene and hospital times, traffic); only the difference between layouts is meaningful.</p>
           </section>
         </aside>
       </div>
-      <footer className="text-center text-[10px] text-slate-500 py-4">Project Dispatch · Research prototype · Team Grease · IBM Z Datathon 2026 · Not for emergency operations</footer>
+      <footer className="bg-navy border-b-[6px] border-signal text-center text-[11px] text-slate-400 py-4">Project Dispatch · Team Grease · IBM Z Datathon 2026 · Research prototype, not for emergency operations</footer>
     </div>
   );
 }

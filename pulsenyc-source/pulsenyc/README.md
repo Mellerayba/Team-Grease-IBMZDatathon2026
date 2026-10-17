@@ -23,9 +23,9 @@ This replays one day (default 2022-07-19, the heat wave; window 14:00-20:00, 330
 ## What you see
 
 - **Zones** shaded by the model: risk index, forecast calls for the next hour, or what actually happened. A new forecast lands every 30 minutes and the shading changes with it.
-- **Live units** coloured by what they are doing (available, moving to a new post, responding, on scene, to hospital, at hospital).
-- **Where they are going after a change:** dashed cyan street routes with a ring at the destination for every move the model makes; the right-hand log gives each move's reason.
-- **Calls coming in:** a dot appears the minute a call arrives (dark red until a unit is assigned, orange while one is en route) and disappears when a unit reaches it.
+- **Live units** (flat squares, in the pitch deck's navy, red and gold) coloured by what they are doing (available, moving to a new post, responding, on scene, to hospital, at hospital).
+- **Where they are going after a change:** dashed navy street routes with a gold square at the destination for every move the model makes; the right-hand log gives each move's reason.
+- **Calls coming in:** a diamond appears the minute a call arrives (red until a unit is assigned, amber while one is en route) and disappears when a unit reaches it.
 - **Compare view:** static layout and model-guided fleet on the same calls, with running critical-call response metrics and the full-day result.
 
 ## Limits
