@@ -53,12 +53,12 @@ def test_critical_dispatch_is_the_fastest_unit():
     assert pol.dispatch("10001", "critical", LiveState(T0, [Unit("x", "10001", status="busy")])) is None   # nobody idle
 
 
-def _replay(dynamic, forecast_demand, label=None):
+def _replay(dynamic, forecast_demand, label=None, **kw):
     zips = _zones()
     start, end = T0, T0 + pd.Timedelta("1h")
     inc = pd.DataFrame({"time": [T0 + pd.Timedelta("3min")], "zipcode": ["10001"], "acuity": ["critical"]})
     fc = {start - pd.Timedelta("30min"): _fc(*forecast_demand), start: _fc(*forecast_demand)}
-    return R.run_replay(zips, fc, inc, _fc(100, 0, 0), None, dynamic=dynamic, n_units=1, start=start, end=end, label=label)
+    return R.run_replay(zips, fc, inc, _fc(100, 0, 0), None, dynamic=dynamic, n_units=1, start=start, end=end, label=label, **kw)
 
 
 def test_a_repositioning_unit_stays_dispatchable_while_it_drives():
@@ -78,3 +78,17 @@ def test_summary_reports_labels_and_dropped_incidents():
     r1, r2 = _replay(False, (0, 40, 0), label="static"), _replay(True, (0, 40, 0), label="dynamic: forecast")
     overall, _ = R.summarize([r1, r2], _zones())
     assert list(overall.index) == ["static", "dynamic: forecast"] and "dropped" in overall and (overall.dropped == 0).all()
+
+
+def test_tracing_changes_no_numbers_and_gives_the_demo_a_consistent_timeline():
+    plain, traced = _replay(True, (0, 40, 0)), _replay(True, (0, 40, 0), trace=True)
+    assert plain["responses"].equals(traced["responses"]) and plain["moves"].equals(traced["moves"])       # tracing only records
+    legs = traced["trace"]["units"]["U0"]["legs"]
+    kinds = [g["kind"] for g in legs]
+    assert kinds[:2] == ["relocation", "respond"]                       # it set off toward 10002, then was cut short and sent to the call
+    assert legs[0]["t1"] == legs[1]["t0"] == 3                          # the drive was cut at the minute the call was dispatched, not at its planned end
+    assert legs[0]["b"] != (40.73, -74.0) or legs[0]["t1"] < 9          # it never reached the destination
+    assert all(a["t1"] <= b["t0"] + 1e-9 for a, b in zip(legs, legs[1:]))   # a unit is never in two places at once
+    assert {"scene", "transport", "hospital"} <= set(kinds)
+    call = traced["trace"]["calls"][0]
+    assert call["dispatched"] == 3 and call["arrived"] == 3 + traced["responses"].eta.iloc[0] and call["done"] > call["arrived"]

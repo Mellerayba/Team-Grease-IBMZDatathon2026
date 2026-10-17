@@ -1,30 +1,33 @@
-# Project Dispatch
+# Project Dispatch: demo
 
-Interactive NYC ambulance dispatch and demand-aware relocation simulation built with React, TypeScript, Tailwind CSS and React Leaflet.
+React + TypeScript + Leaflet front end that **replays the real model run**: real 2022 NYC EMS calls, the LightGBM forecast for each half hour, and the routing policy's decisions, side by side with a fixed (static) layout. Nothing is simulated in the browser.
 
 ## Run
 
 ```bash
 npm install
-npm run dev
+npm run dev          # then open the localhost URL Vite prints, and press RUN DEMO
+npm run build        # production build
 ```
 
-Open the localhost URL shown by Vite. To make a production build, run `npm run build`.
+The page needs internet for the map tiles. It reads `public/data/demo.json` and `public/data/zones.geojson`, which are committed so the demo runs straight after a clone. `?t=150` in the URL opens the replay at minute 150.
 
-## Features
+## Regenerate the data (from the repo root)
 
-- Reproducible synthetic incident stream, with a Brooklyn demand surge
-- Browser-based dispatch and service lifecycle simulation
-- Idle unit relocation every 15 simulated minutes using a rule-based demand heuristic
-- Shared incident arrivals and initial fleet for static and AI policy comparison
-- NYC street map using OpenStreetMap tiles with a CARTO fallback, without an API key
-- Playback, speed, fleet size, policy and visualization controls
-- Response time and 90th percentile metrics derived from simulated outcomes
+```bash
+python scripts/export_demo.py --street-routes     # needs notebooks/data/processed/forecast_zone_test.csv.gz and incidents.csv.gz
+```
 
-## Important limitations
+This replays one day (default 2022-07-19, the heat wave; window 14:00-20:00, 330 units) under the static layout and the model-guided policy (and the oracle, for the full-day table), and writes the unit timelines, call lifecycles, zone polygons and the forecast and risk index for every 30-minute cycle. `--street-routes` fetches real street routes (public OSRM, cached in `notebooks/data/raw/route_cache.json`) for every move the policy makes, so repositioning units drive along streets; about 400 routes take 7 minutes the first time. Options: `--day`, `--from-hour`, `--hours`, `--units`.
 
-This is a demonstrator, not an operational EMS model. Forecasts are rule-based, not machine learning. Travel follows straight-line interpolation and approximated urban speed, not a routed road network. Fleet deployment, service durations and incidents are illustrative. Hospital markers use real campus reference coordinates; they are not ambulance entrance locations. The app needs internet access for map tiles. No historical NYC data is bundled.
+## What you see
 
-## Hospital locations
+- **Zones** shaded by the model: risk index, forecast calls for the next hour, or what actually happened. A new forecast lands every 30 minutes and the shading changes with it.
+- **Live units** coloured by what they are doing (available, moving to a new post, responding, on scene, to hospital, at hospital).
+- **Where they are going after a change:** dashed cyan street routes with a ring at the destination for every move the model makes; the right-hand log gives each move's reason.
+- **Calls coming in:** a dot appears the minute a call arrives (dark red until a unit is assigned, orange while one is en route) and disappears when a unit reaches it.
+- **Compare view:** static layout and model-guided fleet on the same calls, with running critical-call response metrics and the full-day result.
 
-Five named example facilities are shown, one per borough; this is not a complete hospital directory. Coordinates come from [NYC Health + Hospitals facilities](https://data.cityofnewyork.us/resource/q6fj-vxf8.json) and [NYC Facilities Database](https://data.cityofnewyork.us/resource/67g2-p84d.json). Staten Island uses the South campus at 375 Seguine Avenue. The simulation selects the nearest of these five facilities using straight-line distance. It does not model hospital capacity, clinical suitability, or road routing.
+## Limits
+
+Response times are **modelled**, not measured: fleet size, scene and hospital times, traffic and (for responses) travel times are assumptions; routes for repositioning moves are real streets but responding and transport legs are drawn as straight lines. Only the difference between layouts is meaningful. `src/engine.ts` is the earlier in-browser synthetic simulation and is no longer used.

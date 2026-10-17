@@ -102,7 +102,9 @@ def run_replay(zips: pd.DataFrame, fc_by_bucket: dict, incidents: pd.DataFrame, 
                vulnerability: pd.Series | None, *, dynamic: bool, n_units: int, start, end,
                hospital_zips=(), cfg: PolicyConfig | None = None, issue_offset=pd.Timedelta("30min"),
                cycle_min: int = 30, scene_min: float = 15.0, traffic_fn=default_traffic, seed: int = 0,
-               label: str | None = None):
+               label: str | None = None, trace: bool = False, hospital_xy: dict | None = None):
+    """`trace=True` also returns what the demo needs to animate the run: each unit's timeline of drives and stops, and every call's
+    life (called, dispatched, arrived, done). It only records; the replay's numbers are identical with or without it."""
     start, end = pd.Timestamp(start), pd.Timestamp(end)
     assert start.minute % cycle_min == 0 and start.second == 0, "start must sit on a cycle boundary"
     rng = np.random.default_rng(seed)
@@ -128,6 +130,30 @@ def run_replay(zips: pd.DataFrame, fc_by_bucket: dict, incidents: pd.DataFrame, 
     by_min = defaultdict(list)
     for i, m in enumerate(inc_m):
         by_min[m].append(i)
+    if trace:
+        xy = lambda z: (float(zips.loc[z, "lat"]), float(zips.loc[z, "lon"]))
+        jit = np.random.default_rng(seed + 1)                    # separate stream: tracing must not change the replay
+        inc_xy = [(xy(z)[0] + jit.normal(0, .003), xy(z)[1] + jit.normal(0, .004)) for z in inc_z]
+        legs, calls = defaultdict(list), {}                      # unit -> [{t0, t1, kind, a, b}], call index -> life of the call
+
+        def at(uid, m):
+            L = legs[uid]
+            if not L:
+                return xy(U[uid]["home"])
+            g = L[-1]
+            if m >= g["t1"] or g["t1"] <= g["t0"]:
+                return g["b"]
+            f = max(0.0, (m - g["t0"]) / (g["t1"] - g["t0"]))
+            return (g["a"][0] + f * (g["b"][0] - g["a"][0]), g["a"][1] + f * (g["b"][1] - g["a"][1]))
+
+        def go(uid, m, kind, dur, b, **extra):
+            """Unit starts a leg at minute m from wherever it currently is; an unfinished leg is cut short there."""
+            here = at(uid, m)
+            if legs[uid] and legs[uid][-1]["t1"] > m:
+                g = legs[uid][-1]
+                g["t1"], g["b"] = m, here
+                g.pop("path", None)
+            legs[uid].append(dict(t0=float(m), t1=float(m + dur), kind=kind, a=here, b=b, **extra))
 
     home = pol.optimal_layout(static_fc, n_units, LiveState(start, [], 1.0), vulnerability)
     U = {f"U{i}": dict(zone=home[i], home=home[i], status="idle", free_at=0.0, free_zone=home[i],
@@ -162,6 +188,8 @@ def run_replay(zips: pd.DataFrame, fc_by_bucket: dict, incidents: pd.DataFrame, 
                 for mv in dec.moves:
                     u = U[mv.unit_id]
                     u.update(move_to=mv.to_zone, arrive_at=m + mv.travel_min, freed=False)
+                    if trace:
+                        go(mv.unit_id, m, mv.kind, mv.travel_min, xy(mv.to_zone), why=mv.reason, to_zip=mv.to_zone)
                     if mv.kind == "relocation":
                         u["moves"].append(m)
                     moves_log.append(dict(time=t, unit=mv.unit_id, kind=mv.kind, from_zip=mv.from_zone,
@@ -191,15 +219,33 @@ def run_replay(zips: pd.DataFrame, fc_by_bucket: dict, incidents: pd.DataFrame, 
                 u.update(status="busy", free_at=m + busy, free_zone=pol.ids[hzi], job=True, freed=False, move_to=None, arrive_at=None)
                 if not dynamic:                               # static units drive home but stay dispatchable
                     u["home_at"] = m + busy + pol.tt_base[hzi, pol.ix[u["home"]]] * tm
+                if trace:
+                    cands = (hospital_xy or {}).get(pol.ids[hzi]) or [xy(pol.ids[hzi])]      # real hospital sites in that zone, if given
+                    hosp_xy = min(cands, key=lambda h: (h[0] - inc_xy[i][0]) ** 2 + (h[1] - inc_xy[i][1]) ** 2)
+                    leg = pol.tt_base[inc_zi[i], hzi] * tm
+                    t_arr = m + ch.eta_min
+                    go(ch.unit_id, m, "respond", ch.eta_min, inc_xy[i], call=int(i))
+                    legs[ch.unit_id].append(dict(t0=t_arr, t1=t_arr + scene_min, kind="scene", a=inc_xy[i], b=inc_xy[i], call=int(i)))
+                    legs[ch.unit_id].append(dict(t0=t_arr + scene_min, t1=t_arr + scene_min + leg, kind="transport", a=inc_xy[i], b=hosp_xy, call=int(i)))
+                    legs[ch.unit_id].append(dict(t0=t_arr + scene_min + leg, t1=m + busy, kind="hospital", a=hosp_xy, b=hosp_xy, call=int(i)))
+                    if not dynamic:
+                        t_home = u["home_at"]
+                        legs[ch.unit_id].append(dict(t0=m + busy, t1=t_home, kind="return", a=hosp_xy, b=xy(u["home"])))
+                    calls[int(i)] = dict(unit=ch.unit_id, dispatched=float(m), arrived=float(t_arr), done=float(m + busy))
                 su[ch.unit_id].status, su[ch.unit_id].free_in_min = "busy", busy
                 su[ch.unit_id].free_zone = pol.ids[hzi]
                 resp.append(dict(time=inc.time[i], zipcode=inc_z[i], acuity=inc_ac[i],
                                  wait=m - inc_m[i], eta=ch.eta_min, minutes=(m - inc_m[i]) + ch.eta_min))
             queue = rest
 
-    return dict(policy=label or ("dynamic" if dynamic else "static"), responses=pd.DataFrame(resp),
-                cycles=pd.DataFrame(cycles), moves=pd.DataFrame(moves_log), unserved=len(queue),
-                dropped_incidents=dropped, n_incidents=n)
+    out = dict(policy=label or ("dynamic" if dynamic else "static"), responses=pd.DataFrame(resp),
+               cycles=pd.DataFrame(cycles), moves=pd.DataFrame(moves_log), unserved=len(queue),
+               dropped_incidents=dropped, n_incidents=n)
+    if trace:
+        out["trace"] = dict(
+            start=start, units={k: dict(home=xy(U[k]["home"]), legs=legs[k]) for k in U},
+            calls=[dict(i=i, minute=int(inc_m[i]), zone=inc_z[i], acuity=inc_ac[i], xy=inc_xy[i], **calls.get(i, {})) for i in range(n)])
+    return out
 
 
 def summarize(results: list[dict], zips: pd.DataFrame | None = None, target_min: float = 8.0):
