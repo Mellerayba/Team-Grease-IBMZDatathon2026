@@ -1,0 +1,67 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1280px;height:720px;background:#fff;font-family:Inter,Arial,sans-serif;color:#0b192c;position:relative;overflow:hidden}
+.t{position:absolute;left:40px;top:24px;display:flex;align-items:center;gap:12px}
+.t i{width:16px;height:16px;background:#cc0000}
+h1{font-family:Oswald;font-weight:700;font-size:34px;text-transform:uppercase}
+.sub{position:absolute;left:68px;top:68px;font-size:13px;color:#475569}
+.col{position:absolute;font-family:Oswald;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#64748b}
+.box{position:absolute;background:#f4f5f6;border-left:4px solid #0b192c;padding:9px 12px}
+.box b{display:block;font-family:Oswald;font-weight:700;font-size:15px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px}
+.box span{font-size:11px;line-height:1.4;color:#475569;display:block}
+.z{position:absolute;left:300px;top:112px;width:716px;height:480px;background:#0b192c;border-top:5px solid #cc0000}
+.zl{position:absolute;left:316px;top:122px;color:#fff;font-family:Oswald;font-weight:700;font-size:20px;text-transform:uppercase}
+.zl small{display:block;font-family:Inter;font-weight:400;font-size:11px;color:#ffcc00;letter-spacing:.4px;margin-top:2px;text-transform:none}
+.in{background:#fff;border-left-color:#ffcc00}
+.out{border-left-color:#cc0000}
+svg{position:absolute;left:0;top:0}
+.note{position:absolute;left:316px;top:574px;color:#94a3b8;font-size:10.5px}
+</style></head><body>
+<div class="t"><i></i><h1>Architecture</h1></div>
+<div class="sub">Project Dispatch: from open data to the demo, all processing on an IBM LinuxONE instance.</div>
+
+<div class="col" style="left:40px;top:118px">Open data (outside)</div>
+<div class="box" style="left:40px;top:142px;width:236px"><b>NYC EMS incidents</b><span>NYC Open Data API, 2017-2022 (2021 trains, 2022 tests)</span></div>
+<div class="box" style="left:40px;top:222px;width:236px"><b>Weather and calendar</b><span>Open-Meteo, US holidays</span></div>
+<div class="box" style="left:40px;top:288px;width:236px"><b>Zones and context</b><span>Census ACS, health data, ZIP zone boundaries, hospitals, firehouses</span></div>
+<div class="box" style="left:40px;top:376px;width:236px"><b>Street routing</b><span>OSRM public server (OpenStreetMap), cached on disk</span></div>
+
+<div class="z"></div>
+<div class="zl">IBM LinuxONE instance<small>s390x big-endian, z17-generation, z/VM 7.3, 3 CPUs, 8 GB, JupyterLab; Python 3.12</small></div>
+
+<div class="box in" style="left:322px;top:178px;width:200px"><b>1 Data pipeline</b><span>pandas, NumPy. Streams EMS by year, joins weather and zone data. Peak 1.0 GB for two years</span></div>
+<div class="box in" style="left:556px;top:178px;width:200px"><b>2 Forecast</b><span>8 LightGBM Poisson models: critical and other calls per ZIP zone, 30 min to 3 h. Saved as text files</span></div>
+<div class="box in" style="left:790px;top:178px;width:200px"><b>3 Risk index</b><span>Need-weighted demand x vulnerability, 0-100 per zone</span></div>
+
+<div class="box in" style="left:322px;top:318px;width:200px"><b>4 Positioning policy</b><span>Expected-coverage objective, SciPy assignment, one unit per borough, 30-minute cycle</span></div>
+<div class="box in" style="left:556px;top:318px;width:200px"><b>5 Replay</b><span>Minute-by-minute replay of real 2022 calls: static, scheduled, forecast, oracle</span></div>
+<div class="box in" style="left:790px;top:318px;width:200px"><b>6 Export</b><span>Unit timelines, call lifecycles, zone shading, street routes as JSON</span></div>
+
+<div class="box in" style="left:322px;top:458px;width:310px"><b>7 Web demo</b><span>React, Leaflet, Vite; served from the instance (port 5173); plays back the export</span></div>
+<div class="box in" style="left:656px;top:458px;width:334px"><b>AI accelerator test</b><span>nnpa / zDNN via Snap ML: benchmarked vs CPU LightGBM, slower, so scoring stays on the CPU. 33 tests pass</span></div>
+
+<div class="col" style="left:1040px;top:118px">Users</div>
+<div class="box out" style="left:1040px;top:142px;width:210px"><b>Browser</b><span>Opens the demo through an SSH tunnel to the instance</span></div>
+<div class="box out" style="left:1040px;top:232px;width:210px"><b>Dispatcher view</b><span>Live units, calls, destinations, zones shaded by the forecast</span></div>
+<div class="box out" style="left:1040px;top:322px;width:210px"><b>Decision log</b><span>Each move with its plain-language reason</span></div>
+
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" stroke="#cc0000" stroke-width="2">
+ <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="#cc0000" stroke="none"/></marker><marker id="g" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="#ffcc00" stroke="none"/></marker></defs>
+ <path d="M276 175 H322" marker-end="url(#a)"/>
+ <path d="M276 250 H299 V215 H322" marker-end="url(#a)"/>
+ <path d="M276 325 H299 V230 H322" marker-end="url(#a)"/>
+ <path d="M522 215 H556" marker-end="url(#a)"/>
+ <path d="M756 215 H790" marker-end="url(#a)"/>
+ <path d="M890 262 V290 H422 V318" marker-end="url(#a)"/>
+ <path d="M522 355 H556" marker-end="url(#a)"/>
+ <path d="M756 355 H790" marker-end="url(#a)"/>
+ <path d="M890 405 V432 H477 V458" marker-end="url(#a)"/>
+ <path d="M276 400 H322" stroke="#475569" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a)"/>
+ <path d="M477 540 V568 H1028 V180 H1040" marker-end="url(#a)"/>
+ <path d="M1028 270 H1040" marker-end="url(#a)"/>
+ <path d="M1028 360 H1040" marker-end="url(#a)"/>
+</svg>
+<div class="note">Red: data flow. Dashed: street routes and drive times requested from OSRM for the policy's moves.</div>
+<div style="position:absolute;left:40px;top:640px;font-size:11px;color:#64748b;width:1200px">Everything between the red bar and the note runs on the instance. Only open-data downloads, the OSRM route requests and the viewer's browser are outside it.</div></body></html>

@@ -1,0 +1,45 @@
+<!doctype html><html><head><meta charset="utf-8"><title>The Stack on IBM Z slide</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:960px;height:540px;background:#f4f5f6;font-family:Inter,Arial,sans-serif;color:#0b192c;position:relative;overflow:hidden}
+.title{position:absolute;left:40px;top:26px;display:flex;align-items:center;gap:14px}
+.sq{width:18px;height:18px;background:#cc0000}
+h1{font-family:Oswald,sans-serif;font-weight:700;font-size:40px;letter-spacing:.5px;text-transform:uppercase;line-height:1}
+.sub{position:absolute;left:72px;top:76px;font-size:13px;color:#475569}
+.stack{position:absolute;left:40px;top:116px;width:470px}
+.layer{background:#fff;border-left:5px solid #0b192c;padding:11px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;min-height:62px}
+.layer .k{font-family:Oswald;font-weight:700;text-transform:uppercase;font-size:17px;letter-spacing:.3px}
+.layer .v{font-size:11.5px;color:#475569;line-height:1.4;text-align:right;max-width:255px}
+.layer.top{border-left-color:#ffcc00}
+.layer.base{background:#0b192c;color:#fff;border-left-color:#cc0000;min-height:80px}
+.layer.base .v{color:#cbd5e1}
+.layer.base .k{font-size:22px}
+.layer.base small{display:block;font-family:Inter;font-weight:400;font-size:11px;color:#ffcc00;letter-spacing:.5px;margin-bottom:3px}
+.right{position:absolute;left:540px;top:116px;width:380px}
+.right h2{font-family:Oswald;font-weight:700;text-transform:uppercase;font-size:20px;display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.right h2:before{content:'';width:12px;height:12px;background:#cc0000}
+.item{background:#fff;padding:10px 14px;margin-bottom:8px;display:flex;gap:14px;align-items:center}
+.item b{font-family:Oswald;font-weight:700;font-size:26px;color:#cc0000;min-width:92px;line-height:1.05}
+.item span{font-size:11.5px;line-height:1.4;color:#475569}
+.item.dark{background:#0b192c}.item.dark b{color:#f5a623}.item.dark span{color:#dbe2ec}
+.foot{position:absolute;left:40px;top:506px;font-size:10px;color:#64748b}
+</style></head><body>
+<div class="title"><div class="sq"></div><h1>The Stack on IBM Z</h1></div>
+<div class="sub">Every layer below runs on the LinuxONE instance, from raw data to the demo.</div>
+<div class="stack">
+ <div class="layer top"><span class="k">Demo</span><span class="v">React + Leaflet map, served from the VM; real street routes (OSRM)</span></div>
+ <div class="layer"><span class="k">Decisions</span><span class="v">Positioning policy (SciPy assignment) and minute-by-minute replay of real 2022 calls</span></div>
+ <div class="layer"><span class="k">Forecast</span><span class="v">8 LightGBM Poisson models: critical and other calls per ZIP zone, 30 min to 3 h</span></div>
+ <div class="layer"><span class="k">Data and Python</span><span class="v">pandas, NumPy, SciPy; NYC Open Data, Open-Meteo, Census</span></div>
+ <div class="layer base"><span class="k"><small>BASE OF THE STACK</small>IBM LinuxONE</span><span class="v">s390x (big-endian), z17-generation, z/VM 7.3, 3 CPUs, 8 GB, Jupyter</span></div>
+</div>
+<div class="right">
+ <h2>How we use IBM Z</h2>
+ <div class="item dark"><b>End to end</b><span>Training, scoring, replay and demo all run on the instance. 33 of 33 tests pass on s390x.</span></div>
+ <div class="item"><b>1.0 GB</b><span>peak memory for two years of data: built to fit the instance, not the other way round.</span></div>
+ <div class="item"><b>Portable</b><span>Models saved as text files, because pickles do not move between x86 and big-endian s390x.</span></div>
+ <div class="item"><b>nnpa</b><span>On-chip AI accelerator found and driven through Snap ML. Benchmarked at 0.3 to 0.7x the CPU, so we kept the faster CPU path.</span></div>
+</div>
+<div class="foot">Measured on the VM: accelerator benchmark, memory test and test suite (screenshots in the repo).</div>
+</body></html>
