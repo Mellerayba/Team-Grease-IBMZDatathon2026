@@ -86,7 +86,7 @@ function App() {
       <header className="bg-navy border-t-[6px] border-signal text-white px-4 md:px-6 py-4">
         <div className="flex flex-wrap justify-between items-end gap-4">
           <div>
-            <p className="text-gold text-[11px] tracking-wide">IBM Z Datathon: Theme 3 - Wildcard</p>
+            <p className="text-gold text-[11px] tracking-wide">IBM Z Datathon: Theme 1 - Real-time AI for critical decisions</p>
             <h1 className="font-display font-bold text-4xl md:text-5xl uppercase leading-none tracking-wide mt-1">Project Dispatch</h1>
             <p className="text-sm text-slate-300 mt-1">A solution to New York EMS response times.</p>
           </div>

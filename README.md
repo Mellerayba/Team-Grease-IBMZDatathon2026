@@ -1,8 +1,10 @@
 # Team Grease_IBM Z Datathon 2026 Project: Project Dispatch
 
-IBM Z Datathon 2026 · event code `SSF2026` · Team Grease (Jacob Barton, Dominic Easton, Harry Rowlands, Darragh Coleman, Frederic Tatham, Napat Chollabud)
+IBM Z Datathon 2026 · Theme 1: Real-time AI for critical decisions · event code `SSF2026` · Team Grease (Jacob Barton, Dominic Easton, Harry Rowlands, Darragh Coleman, Frederic Tatham, Napat Chollabud)
 
 **Project Dispatch decides where emergency-response units should wait in New York City before calls arrive, and which unit to send, using a demand forecast trained and run on an IBM LinuxONE VM.** Every number below is *modelled* from real 2022 incidents under stated assumptions, not measured in the field.
+
+**Live demo:** https://mellerayba.github.io/Team-Grease-IBMZDatathon2026/ (press Run demo). **Why Theme 1:** the policy re-decides where every unit should wait every 30 minutes from a fresh forecast, in about 65 ms per decision cycle on the replay, which is a real-time decision problem where minutes matter; we test it on a replay of real 2022 calls, not a live feed.
 
 Everything we decided, measured and learned is in one file: [`docs/decisions.md`](docs/decisions.md). Evidence screenshots and VM output: [`docs/screenshot_examples.md`](docs/screenshot_examples.md).
 

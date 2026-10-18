@@ -26,6 +26,8 @@ Status key: **Decided** (team agreed) · **Proposed** (recommended default, not 
 
 ## 1. Summary
 
+**Theme:** IBM Z Datathon Theme 1, real-time AI for critical decisions. The policy re-decides where every unit waits every 30 minutes from a fresh forecast (about 65 ms per cycle in the replay); it is tested on a replay of real 2022 calls, not a live feed.
+
 **What it is.** Project Dispatch decides where emergency-response units should wait in New York City before calls arrive, and which unit to send. A LightGBM model forecasts expected critical and other 911 medical calls for every ZIP zone over the next 30 minutes to 3 hours; a positioning policy moves idle units toward the demand that is most likely and most vulnerable; a minute-by-minute replay of real 2022 incidents measures what that does to response times against a fixed layout. The product framing (D13) is a fleet of lightweight electric first-response units that stabilise a critical patient until an ambulance arrives; the question for the city is **how many units to buy and where they should stand**.
 
 **What exists and works (verified):**
@@ -490,7 +492,7 @@ What we know, and where it comes from:
 - Equity improvements: Staten Island does worse under the dynamic policy on two of the three runs (section 10).
 
 ### Pitch and README claims to reconcile before submission
-- The deck notebook (`notebooks/Grease_DISPATCH_Pitch_Deck (1).ipynb`, `docs/Grease DISPATCH Pitch Deck.pptx`) lists "weather related incident prediction", "AI-driven path optimization", theme "Wildcard" and a "mobile clinic fleet"; these conflict with the evidence above and with D13.
+- The deck notebook (`notebooks/Grease_DISPATCH_Pitch_Deck (1).ipynb`, `docs/Grease DISPATCH Pitch Deck.pptx`) lists "weather related incident prediction", "AI-driven path optimization", theme "Wildcard" (we submit under Theme 1, real-time AI for critical decisions) and a "mobile clinic fleet"; these conflict with the evidence above and with D13.
 - The older pitch notebooks (`V1 Pitch.ipynb`, `Project Grease Pitch Deck.ipynb`) describe mobile clinic vans and "healthcare deserts"; superseded by D1/D13.
 - README open-source table lists Streamlit; the dashboard package is a skeleton and the demo is React.
 
@@ -523,6 +525,7 @@ What we know, and where it comes from:
 | 2026-10-17 | Accelerator tested on the VM and benchmarked fairly: works but slower than CPU LightGBM; D11 decided, results in section 6 |
 | 2026-10-17 | Demo wired to the real model run (`scripts/export_demo.py`, `ems_replay.run_replay(trace=True)`, React `replay.ts` / `DemoMap.tsx`): the browser replays real 2022-07-19 calls, the forecaster's per-cycle zone output (risk index shading) and the policy's moves on real street routes; the synthetic in-browser engine is no longer used. Zone-level replay (178 zones, hospitals at real sites) gives, for 14:00-20:00 and the full day at 330 units: critical calls within 8 min static 82.3% vs forecast-guided 91.2% vs oracle 93.4% (modelled times; notebook ZIP-level numbers can differ slightly) |
 | 2026-10-17 | VM screenshots added (`docs/screenshots/vm-01` to `vm-12`): platform and memory check, accelerator verdict and a repeat benchmark, 33 tests passing on s390x, the forecaster trained and scored on the VM, the replay run on the VM. The replay results were corrected to the VM run: scheduled (85.14%) is level with forecast (84.76%) on critical coverage, and Staten Island is mixed rather than uniformly worse |
+| 2026-10-18 | Submission theme set to Theme 1 (real-time AI for critical decisions): website header, README and this record updated; demo hosted on GitHub Pages |
 | 2026-10-17 | Consolidated every note (plan, data, research, hand-off, non-technical timeline, original plan) into this file; README rewritten; screenshots and VM output collected in `screenshot_examples.md` |
 
 ---
